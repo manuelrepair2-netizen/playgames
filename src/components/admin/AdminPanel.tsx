@@ -64,10 +64,23 @@ async function updateGameInAPI(id: string, gameData: any): Promise<Game> {
 }
 
 async function deleteGameFromAPI(id: string): Promise<void> {
+  console.log(`🗑️ deleteGameFromAPI chamado com ID: ${id}`);
+  
+  if (!id) {
+    throw new Error('ID do jogo não fornecido');
+  }
+  
   const response = await fetch(`${API_URL}/games/${id}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' }
   });
-  if (!response.ok) throw new Error('Erro ao deletar jogo');
+  
+  console.log(`📡 DELETE /api/games/${id} - Status: ${response.status}`);
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
+    throw new Error(errorData.message || `Erro ao deletar jogo (status ${response.status})`);
+  }
 }
 
 interface AdminPanelProps {
@@ -102,7 +115,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onCloseAdmin, onRefreshA
     setError(null);
     try {
       const gamesFromAPI = await fetchGamesFromAPI();
-      setGames(gamesFromAPI);
+      // Mapear _id do MongoDB para id (garantir compatibilidade)
+      const mappedGames = gamesFromAPI.map(g => ({
+        ...g,
+        id: g._id || g.id
+      }));
+      setGames(mappedGames);
     } catch (err) {
       console.error('Erro ao carregar jogos:', err);
       setError('Não foi possível carregar os jogos do banco de dados.');
@@ -302,9 +320,42 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onCloseAdmin, onRefreshA
       });
     }
 
+    // ===== LÓGICA CORRETA DO SLUG =====
+    let slug: string;
+    
+    if (editingGame) {
+      // EDITANDO: manter o slug original
+      slug = editingGame.slug;
+      
+      // Se o título mudou, gerar novo slug
+      if (editingGame.title !== formTitle.trim()) {
+        const baseSlug = formTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        let newSlug = baseSlug;
+        let counter = 1;
+        
+        // Verificar se o novo slug já existe em OUTRO jogo (não no que está sendo editado)
+        while (games.some(g => g.slug === newSlug && g.id !== editingGame.id)) {
+          newSlug = `${baseSlug}-${counter}`;
+          counter++;
+        }
+        slug = newSlug;
+      }
+    } else {
+      // ADICIONANDO: gerar slug único
+      const baseSlug = formTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      let newSlug = baseSlug;
+      let counter = 1;
+      
+      while (games.some(g => g.slug === newSlug)) {
+        newSlug = `${baseSlug}-${counter}`;
+        counter++;
+      }
+      slug = newSlug;
+    }
+
     const gameData = {
       title: formTitle.trim(),
-      slug: formTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      slug: slug,
       coverUrl: formCoverUrl,
       bannerUrl: formBannerUrl || formCoverUrl,
       screenshots: formScreenshots,
@@ -320,9 +371,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onCloseAdmin, onRefreshA
       downloadLinks,
       status: formStatus,
       featured: formFeatured,
-      downloadsCount: 0,
-      rating: 0,
-      reviewCount: 0
+      downloadsCount: editingGame?.downloadsCount || 0,
+      rating: editingGame?.rating || 0,
+      reviewCount: editingGame?.reviewCount || 0
     };
 
     try {
@@ -337,22 +388,50 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onCloseAdmin, onRefreshA
       setIsGameModalOpen(false);
     } catch (err) {
       console.error('Erro ao salvar jogo:', err);
-      setError('Erro ao salvar o jogo no banco de dados.');
+      setError('Erro ao salvar o jogo no banco de dados. Verifique se o título já existe.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteGame = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este jogo da plataforma?')) {
+    console.log('🗑️ Tentando deletar jogo com ID:', id);
+    
+    if (!id) {
+      console.error('❌ ID do jogo é inválido:', id);
+      setError('ID do jogo inválido. Não é possível excluir.');
+      return;
+    }
+
+    // Encontrar o jogo para mostrar o nome no confirm
+    const gameToDelete = games.find(g => g.id === id || g._id === id);
+    const gameName = gameToDelete?.title || 'este jogo';
+
+    if (window.confirm(`Tem certeza que deseja excluir "${gameName}" da plataforma?`)) {
       try {
         setLoading(true);
-        await deleteGameFromAPI(id);
+        setError(null);
+        
+        console.log(`📡 Enviando DELETE para: /api/games/${id}`);
+        const response = await fetch(`${API_URL}/games/${id}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        console.log('📡 Status da resposta:', response.status);
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
+          throw new Error(errorData.message || `Erro ${response.status}`);
+        }
+        
         await refreshAdminData();
         onRefreshAll();
+        console.log('✅ Jogo deletado com sucesso!');
+        
       } catch (err) {
-        console.error('Erro ao deletar jogo:', err);
-        setError('Erro ao deletar o jogo.');
+        console.error('❌ Erro ao deletar jogo:', err);
+        setError(`Erro ao deletar o jogo: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
       } finally {
         setLoading(false);
       }
