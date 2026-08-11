@@ -8,63 +8,105 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// ===== VERIFICAR VARIÁVEIS DE AMBIENTE =====
-console.log('🔍 Verificando variáveis de ambiente...');
-console.log('PORT:', process.env.PORT || '3000 (padrão)');
-console.log('NODE_ENV:', process.env.NODE_ENV || 'development');
-
 // ===== CONEXÃO AO MONGODB =====
 const MONGODB_URI = process.env.MONGODB_URI;
-console.log('📡 MONGODB_URI:', MONGODB_URI ? '✅ definida' : '❌ NÃO definida');
 
 if (!MONGODB_URI) {
-  console.error('❌ ERRO FATAL: MONGODB_URI não está definida!');
-  console.log('💡 Configure no Render: Environment → Add Variable → MONGODB_URI');
-  // Fallback para teste (REMOVER DEPOIS!)
-  console.log('🔄 Usando fallback para teste...');
-  const fallbackURI = 'mongodb+srv://manuel:Manuel%231978@cluster0.lzmysuf.mongodb.net/ps4games';
-  mongoose.connect(fallbackURI)
-    .then(() => console.log('✅ Conectado ao MongoDB (fallback)!'))
-    .catch(err => {
-      console.error('❌ Fallback também falhou:', err.message);
-      process.exit(1);
-    });
-} else {
-  mongoose.connect(MONGODB_URI)
-    .then(() => console.log('✅ Conectado ao MongoDB com sucesso!'))
-    .catch(err => {
-      console.error('❌ Erro ao conectar:', err.message);
-      process.exit(1);
-    });
+  console.error('❌ MONGODB_URI não definida!');
+  process.exit(1);
 }
 
+console.log('📡 Conectando ao MongoDB...');
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log('✅ Conectado ao MongoDB!'))
+  .catch((err) => {
+    console.error('❌ Erro ao conectar:', err.message);
+    process.exit(1);
+  });
+
 // ===== ROTAS DA API =====
+
+// Buscar todos os jogos
 app.get('/api/games', async (req, res) => {
   try {
     const games = await Game.find();
     res.json({ status: 'success', data: games });
   } catch (error) {
+    console.error('Erro ao buscar jogos:', error);
     res.status(500).json({ status: 'error', message: 'Erro ao buscar jogos' });
   }
 });
 
-// ===== ROTA DE TESTE PARA VARIÁVEIS DE AMBIENTE =====
-app.get('/api/test-env', (req, res) => {
-  res.json({
-    hasMongoURI: !!process.env.MONGODB_URI,
-    nodeEnv: process.env.NODE_ENV,
-    port: process.env.PORT,
-    status: 'Servidor rodando!'
-  });
+// Adicionar novo jogo
+app.post('/api/games', async (req, res) => {
+  try {
+    const game = new Game(req.body);
+    await game.save();
+    res.json({ status: 'success', data: game });
+  } catch (error) {
+    console.error('Erro ao adicionar jogo:', error);
+    res.status(500).json({ status: 'error', message: 'Erro ao adicionar jogo' });
+  }
 });
 
-// Servir arquivos estáticos
+// Atualizar jogo
+app.put('/api/games/:id', async (req, res) => {
+  try {
+    const game = await Game.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!game) {
+      return res.status(404).json({ status: 'error', message: 'Jogo não encontrado' });
+    }
+    res.json({ status: 'success', data: game });
+  } catch (error) {
+    console.error('Erro ao atualizar jogo:', error);
+    res.status(500).json({ status: 'error', message: 'Erro ao atualizar jogo' });
+  }
+});
+
+// Deletar jogo
+app.delete('/api/games/:id', async (req, res) => {
+  try {
+    const game = await Game.findByIdAndDelete(req.params.id);
+    if (!game) {
+      return res.status(404).json({ status: 'error', message: 'Jogo não encontrado' });
+    }
+    res.json({ status: 'success', message: 'Jogo deletado com sucesso' });
+  } catch (error) {
+    console.error('Erro ao deletar jogo:', error);
+    res.status(500).json({ status: 'error', message: 'Erro ao deletar jogo' });
+  }
+});
+
+// Estatísticas
+app.get('/api/stats', async (req, res) => {
+  try {
+    const totalGames = await Game.countDocuments();
+    const totalDownloads = await Game.aggregate([
+      { $group: { _id: null, total: { $sum: '$downloadsCount' } } }
+    ]);
+    res.json({
+      status: 'success',
+      totalGames,
+      totalDownloads: totalDownloads[0]?.total || 0,
+      totalUsers: 1480,
+      newGamesThisWeek: 3
+    });
+  } catch (error) {
+    console.error('Erro ao buscar stats:', error);
+    res.status(500).json({ status: 'error', message: 'Erro ao buscar estatísticas' });
+  }
+});
+
+// ===== SERVIDOR DE ARQUIVOS ESTÁTICOS =====
 const distPath = path.join(process.cwd(), 'dist');
+
+// Servir arquivos estáticos
 app.use(express.static(distPath));
 
-// Fallback para SPA
+// Fallback para SPA React
 app.get('*', (req, res) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
+// ===== EXPORTAR PARA O RENDER (NÃO USAR app.listen!) =====
 export default app;
