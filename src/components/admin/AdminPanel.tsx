@@ -30,49 +30,9 @@ import {
 import { Game, User, Report, Category, SiteSettings, DownloadLink } from '../../types';
 import { StorageService } from '../../services/storage';
 
-// ===== API BASE =====
-const API_URL = '/api';
-
 interface AdminPanelProps {
   onCloseAdmin: () => void;
   onRefreshAll: () => void;
-}
-
-// ===== FUNÇÕES DA API =====
-async function fetchGamesFromAPI(): Promise<Game[]> {
-  const response = await fetch(`${API_URL}/games`);
-  if (!response.ok) throw new Error('Erro ao carregar jogos');
-  const data = await response.json();
-  return data.data;
-}
-
-async function addGameToAPI(gameData: any): Promise<Game> {
-  const response = await fetch(`${API_URL}/games`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(gameData)
-  });
-  if (!response.ok) throw new Error('Erro ao adicionar jogo');
-  const data = await response.json();
-  return data.data;
-}
-
-async function updateGameInAPI(id: string, gameData: any): Promise<Game> {
-  const response = await fetch(`${API_URL}/games/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(gameData)
-  });
-  if (!response.ok) throw new Error('Erro ao atualizar jogo');
-  const data = await response.json();
-  return data.data;
-}
-
-async function deleteGameFromAPI(id: string): Promise<void> {
-  const response = await fetch(`${API_URL}/games/${id}`, {
-    method: 'DELETE'
-  });
-  if (!response.ok) throw new Error('Erro ao deletar jogo');
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ onCloseAdmin, onRefreshAll }) => {
@@ -92,10 +52,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onCloseAdmin, onRefreshA
   const [users, setUsers] = useState<User[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [settings, setSettings] = useState<SiteSettings>(StorageService.getSettings());
-
-  // ===== ESTADOS DE CARREGAMENTO =====
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Game CRUD Modal State
   const [isGameModalOpen, setIsGameModalOpen] = useState(false);
@@ -135,26 +91,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onCloseAdmin, onRefreshA
   const [newAnnouncementText, setNewAnnouncementText] = useState(settings.announcementText);
   const [settingsSavedMsg, setSettingsSavedMsg] = useState('');
 
-  // ===== CARREGAR JOGOS DO BANCO =====
-  const loadGames = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const gamesFromAPI = await fetchGamesFromAPI();
-      setGames(gamesFromAPI);
-    } catch (err) {
-      console.error('Erro ao carregar jogos:', err);
-      setError('Não foi possível carregar os jogos do banco de dados.');
-      // Fallback para Storage local
-      const localGames = StorageService.getGames();
-      if (localGames.length > 0) {
-        setGames(localGames);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
     // Check if current logged in user is authorized admin
     const currentUser = StorageService.getCurrentUser();
@@ -164,19 +100,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onCloseAdmin, onRefreshA
     if (currentUser && (currentUser.email?.toLowerCase() === authorizedEmail || currentUser.role === 'admin')) {
       setIsAuthenticated(true);
     }
-    
-    // Carregar dados do banco
     refreshAdminData();
   }, []);
 
-  const refreshAdminData = async () => {
-    await loadGames();
+  const refreshAdminData = () => {
+    setGames(StorageService.getGames());
     setUsers(StorageService.getUsers());
     setReports(StorageService.getReports());
     setSettings(StorageService.getSettings());
   };
 
-  // ===== AUTH =====
   const handleAdminCredentialsSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
@@ -198,6 +131,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onCloseAdmin, onRefreshA
     );
 
     if (isAuthorizedIdentity && isPasswordCorrect) {
+      // Credentials valid -> advance to PIN step
       setLoginStep('pin');
       setAdminPinInput('');
     } else if (!isAuthorizedIdentity) {
@@ -235,8 +169,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onCloseAdmin, onRefreshA
     }
   };
 
-  // ===== GAME CRUD (USANDO API) =====
-  
+  // Open Game Form for Add / Edit
   const openGameModal = (gameToEdit?: Game) => {
     if (gameToEdit) {
       setEditingGame(gameToEdit);
@@ -290,7 +223,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onCloseAdmin, onRefreshA
     }
   };
 
-  const handleSaveGame = async (e: React.FormEvent) => {
+  const handleSaveGame = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formTitle.trim()) return;
 
@@ -306,96 +239,68 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onCloseAdmin, onRefreshA
       });
     }
 
-    const gameData = {
-      nome: formTitle.trim(),
-      genero: formGenres.join(', '),
-      descricao: formDescription,
-      imagem: formCoverUrl,
-      tamanho: formSize,
-      dataLancamento: formReleaseDate,
-      desenvolvedora: formDeveloper,
-      linkDownload: formPrimaryLink,
-      linkAlternativo: formAltLink || '',
-      nota: 0,
-      downloads: 0,
-      status: formStatus,
-      // Campos adicionais para compatibilidade com o frontend
-      title: formTitle.trim(),
-      slug: formTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-      coverUrl: formCoverUrl,
-      bannerUrl: formBannerUrl || formCoverUrl,
-      screenshots: formScreenshots,
-      genres: formGenres,
-      size: formSize,
-      releaseDate: formReleaseDate,
-      developer: formDeveloper,
-      region: formRegion,
-      language: formLanguage,
-      firmware: formFirmware,
-      cusaCode: formCusaCode,
-      downloadLinks,
-      featured: formFeatured,
-      downloadsCount: editingGame?.downloadsCount || 0,
-      rating: editingGame?.rating || 0,
-      reviewCount: editingGame?.reviewCount || 0
-    };
-
-    try {
-      setLoading(true);
-      if (editingGame) {
-        // Atualizar jogo existente
-        await updateGameInAPI(editingGame.id, gameData);
-      } else {
-        // Adicionar novo jogo
-        await addGameToAPI(gameData);
-      }
-      
-      // Recarregar dados
-      await refreshAdminData();
-      onRefreshAll();
-      setIsGameModalOpen(false);
-      setError(null);
-    } catch (err) {
-      console.error('Erro ao salvar jogo:', err);
-      setError('Erro ao salvar o jogo no banco de dados. Tente novamente.');
-    } finally {
-      setLoading(false);
+    if (editingGame) {
+      const updated: Game = {
+        ...editingGame,
+        title: formTitle.trim(),
+        slug: formTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        coverUrl: formCoverUrl,
+        bannerUrl: formBannerUrl || formCoverUrl,
+        screenshots: formScreenshots,
+        genres: formGenres,
+        size: formSize,
+        releaseDate: formReleaseDate,
+        developer: formDeveloper,
+        region: formRegion,
+        language: formLanguage,
+        firmware: formFirmware,
+        cusaCode: formCusaCode,
+        description: formDescription,
+        downloadLinks,
+        status: formStatus,
+        featured: formFeatured
+      };
+      StorageService.updateGame(updated);
+    } else {
+      StorageService.addGame({
+        title: formTitle.trim(),
+        slug: formTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        coverUrl: formCoverUrl,
+        bannerUrl: formBannerUrl || formCoverUrl,
+        screenshots: formScreenshots,
+        genres: formGenres,
+        size: formSize,
+        releaseDate: formReleaseDate,
+        developer: formDeveloper,
+        region: formRegion,
+        language: formLanguage,
+        firmware: formFirmware,
+        cusaCode: formCusaCode,
+        description: formDescription,
+        downloadLinks,
+        status: formStatus,
+        featured: formFeatured
+      });
     }
+
+    refreshAdminData();
+    onRefreshAll();
+    setIsGameModalOpen(false);
   };
 
-  const handleDeleteGame = async (id: string) => {
+  const handleDeleteGame = (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir este jogo da plataforma?')) {
-      try {
-        setLoading(true);
-        await deleteGameFromAPI(id);
-        await refreshAdminData();
-        onRefreshAll();
-        setError(null);
-      } catch (err) {
-        console.error('Erro ao deletar jogo:', err);
-        setError('Erro ao deletar o jogo do banco de dados.');
-      } finally {
-        setLoading(false);
-      }
+      StorageService.deleteGame(id);
+      refreshAdminData();
+      onRefreshAll();
     }
   };
 
-  const handleToggleGameStatus = async (game: Game) => {
-    const updated = { 
-      ...game, 
-      status: game.status === 'Active' ? 'Inactive' as const : 'Active' as const 
-    };
-    try {
-      setLoading(true);
-      await updateGameInAPI(game.id, updated);
-      await refreshAdminData();
-      onRefreshAll();
-    } catch (err) {
-      console.error('Erro ao atualizar status:', err);
-      setError('Erro ao atualizar o status do jogo.');
-    } finally {
-      setLoading(false);
-    }
+  const handleToggleGameStatus = (game: Game) => {
+    const updated = { ...game, status: game.status === 'Active' ? 'Inactive' as const : 'Active' as const };
+    StorageService.updateGame(updated);
+    refreshAdminData();
+    onRefreshAll();
   };
 
   const handleToggleUserBan = (userId: string) => {
@@ -508,6 +413,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onCloseAdmin, onRefreshA
                   A senha é censurada por motivos de segurança.
                 </p>
 
+                {/* Censored 4-digit PIN Visual Indicator */}
                 <div className="flex justify-center gap-3 mb-4">
                   {[0, 1, 2, 3].map((index) => {
                     const isFilled = adminPinInput.length > index;
@@ -530,6 +436,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onCloseAdmin, onRefreshA
                   })}
                 </div>
 
+                {/* Actual Censored Input Field */}
                 <input
                   type="password"
                   maxLength={4}
@@ -578,13 +485,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onCloseAdmin, onRefreshA
 
   // Calculate Dashboard Metrics
   const totalGames = games.length;
-  const totalDownloads = games.reduce((sum, g) => sum + (g.downloadsCount || 0), 0);
+  const totalDownloads = games.reduce((sum, g) => sum + g.downloadsCount, 0);
   const totalUsers = users.length;
   const pendingReports = reports.filter(r => r.status === 'Pending').length;
 
   const filteredGames = games.filter(g => 
     g.title.toLowerCase().includes(gameSearch.toLowerCase()) || 
-    (g.cusaCode && g.cusaCode.toLowerCase().includes(gameSearch.toLowerCase()))
+    g.cusaCode.toLowerCase().includes(gameSearch.toLowerCase())
   );
 
   const filteredUsers = users.filter(u => 
@@ -592,13 +499,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onCloseAdmin, onRefreshA
     u.email.toLowerCase().includes(userSearch.toLowerCase())
   );
 
-  // ===== RENDER PRINCIPAL =====
   return (
     <div className="fixed inset-0 z-50 bg-slate-950 flex flex-col md:flex-row overflow-hidden text-slate-100">
       
       {/* Sidebar */}
       <aside className="w-full md:w-64 bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 p-4 flex flex-col shrink-0">
         
+        {/* Admin Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
           <div className="flex items-center gap-2">
             <div className="p-2 bg-blue-600 text-white rounded-xl shadow-md">
@@ -618,6 +525,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onCloseAdmin, onRefreshA
           </button>
         </div>
 
+        {/* Admin Nav */}
         <nav className="flex md:flex-col gap-1.5 overflow-x-auto md:overflow-visible pb-2 md:pb-0 flex-1">
           
           <button
@@ -700,25 +608,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onCloseAdmin, onRefreshA
       {/* Main Content Body */}
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-slate-950">
         
-        {/* ===== INDICADOR DE CARREGAMENTO E ERRO ===== */}
-        {loading && (
-          <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center">
-            <div className="bg-slate-900 p-6 rounded-2xl flex flex-col items-center gap-4 border border-slate-800">
-              <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-              <span className="text-sm font-bold text-white">Processando...</span>
-            </div>
-          </div>
-        )}
-
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-4 rounded-xl text-sm mb-4 flex items-center justify-between">
-            <span>❌ {error}</span>
-            <button onClick={() => setError(null)} className="text-red-400 hover:text-white">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-        
         {/* DASHBOARD TAB */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
@@ -747,7 +636,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onCloseAdmin, onRefreshA
                 <div>
                   <span className="text-xs text-slate-400 font-medium block">Total de Jogos</span>
                   <strong className="text-2xl font-black text-white">{totalGames}</strong>
-                  <span className="text-[10px] text-emerald-400 block mt-0.5">Banco de dados MongoDB</span>
+                  <span className="text-[10px] text-emerald-400 block mt-0.5">+3 cadastrados este mês</span>
                 </div>
               </div>
 
@@ -773,4 +662,681 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onCloseAdmin, onRefreshA
                 </div>
               </div>
 
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center gap
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center gap-4">
+                <div className="p-3 bg-amber-600/20 text-amber-400 rounded-2xl border border-amber-500/30">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 font-medium block">Denúncias Pendentes</span>
+                  <strong className="text-2xl font-black text-amber-400">{pendingReports}</strong>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Links para verificar</span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Interactive Charts Simulation */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              
+              {/* Chart 1: Downloads Bar Visualizer */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
+                    <BarChart2 className="w-4 h-4 text-blue-400" />
+                    <span>Tendência de Downloads (Últimos Dias)</span>
+                  </h3>
+                  <span className="text-[10px] bg-slate-800 text-slate-300 font-mono px-2 py-0.5 rounded">Fevereiro 2026</span>
+                </div>
+
+                <div className="h-44 flex items-end gap-3 pt-6 pb-2 border-b border-slate-800 px-2">
+                  {[
+                    { day: '05 Feb', val: 65 },
+                    { day: '06 Feb', val: 80 },
+                    { day: '07 Feb', val: 120 },
+                    { day: '08 Feb', val: 95 },
+                    { day: '09 Feb', val: 140 },
+                    { day: '10 Feb', val: 180 },
+                    { day: 'Hoje', val: 210 }
+                  ].map((item, i) => (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
+                      <span className="text-[9px] font-mono text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {item.val * 100}
+                      </span>
+                      <div 
+                        style={{ height: `${(item.val / 210) * 100}%` }}
+                        className="w-full bg-gradient-to-t from-blue-600 via-indigo-500 to-cyan-400 rounded-t-lg group-hover:brightness-125 transition-all"
+                      />
+                      <span className="text-[10px] text-slate-400 font-medium truncate mt-1">{item.day}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Chart 2: Top Games List */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                <h3 className="text-sm font-extrabold text-white mb-4 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>Jogos Mais Populares</span>
+                </h3>
+
+                <div className="space-y-3">
+                  {games.slice(0, 4).map((g) => (
+                    <div key={g.id} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+                      <div className="flex items-center gap-3">
+                        <img src={g.coverUrl} alt={g.title} className="w-10 h-12 object-cover rounded-lg" />
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-100">{g.title}</h4>
+                          <span className="text-[10px] text-blue-400">{g.genres.join(', ')}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <strong className="text-xs font-bold text-emerald-400 block">{g.downloadsCount.toLocaleString()}</strong>
+                        <span className="text-[10px] text-slate-500">downloads</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        )}
+
+        {/* GAMES CRUD TAB */}
+        {activeTab === 'games' && (
+          <div className="space-y-6">
+            
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-black text-white">Gerenciar Jogos ({games.length})</h2>
+                <p className="text-xs text-slate-400">Adicione, edite ou altere o status de publicação dos jogos PS4</p>
+              </div>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <div className="relative flex-1 sm:w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input
+                    type="text"
+                    placeholder="Buscar jogo no admin..."
+                    value={gameSearch}
+                    onChange={(e) => setGameSearch(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <button
+                  onClick={() => openGameModal()}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl shadow-lg transition-all cursor-pointer shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Novo Jogo</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Games Table */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-300">
+                  <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-extrabold tracking-wider border-b border-slate-800">
+                    <tr>
+                      <th className="p-3.5">Jogo</th>
+                      <th className="p-3.5">Gêneros</th>
+                      <th className="p-3.5">Tamanho</th>
+                      <th className="p-3.5">Downloads</th>
+                      <th className="p-3.5">Status</th>
+                      <th className="p-3.5 text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    {filteredGames.map((game) => (
+                      <tr key={game.id} className="hover:bg-slate-800/50 transition-colors">
+                        <td className="p-3 flex items-center gap-3">
+                          <img src={game.coverUrl} alt={game.title} className="w-9 h-12 object-cover rounded-md border border-slate-800" />
+                          <div>
+                            <strong className="text-slate-100 font-bold block">{game.title}</strong>
+                            <span className="text-[10px] text-slate-500 font-mono">{game.cusaCode || 'CUSA'}</span>
+                          </div>
+                        </td>
+
+                        <td className="p-3">
+                          <span className="text-blue-400 font-medium">{game.genres.slice(0, 2).join(', ')}</span>
+                        </td>
+
+                        <td className="p-3">
+                          <span className="text-emerald-400 font-bold">{game.size}</span>
+                        </td>
+
+                        <td className="p-3">
+                          <strong className="text-slate-200">{game.downloadsCount.toLocaleString()}</strong>
+                        </td>
+
+                        <td className="p-3">
+                          <button
+                            onClick={() => handleToggleGameStatus(game)}
+                            className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase border cursor-pointer transition-colors ${
+                              game.status === 'Active'
+                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                : 'bg-red-500/10 text-red-400 border-red-500/30'
+                            }`}
+                          >
+                            {game.status === 'Active' ? '● Ativo' : '○ Inativo'}
+                          </button>
+                        </td>
+
+                        <td className="p-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => openGameModal(game)}
+                              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-blue-400 transition-colors"
+                              title="Editar jogo"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteGame(game.id)}
+                              className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors"
+                              title="Excluir jogo"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* USERS TAB */}
+        {activeTab === 'users' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-black text-white">Usuários Cadastrados ({users.length})</h2>
+                <p className="text-xs text-slate-400">Gerencie contas de usuários e status de suspensão</p>
+              </div>
+
+              <div className="relative w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <input
+                  type="text"
+                  placeholder="Buscar usuário..."
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-extrabold tracking-wider border-b border-slate-800">
+                  <tr>
+                    <th className="p-3.5">Usuário</th>
+                    <th className="p-3.5">E-mail</th>
+                    <th className="p-3.5">Função</th>
+                    <th className="p-3.5">Status</th>
+                    <th className="p-3.5 text-right">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {filteredUsers.map((user) => (
+                    <tr key={user.id} className="hover:bg-slate-800/50">
+                      <td className="p-3 flex items-center gap-3">
+                        <img src={user.avatarUrl} alt={user.username} className="w-8 h-8 rounded-full object-cover" />
+                        <span className="font-bold text-slate-100">{user.username}</span>
+                      </td>
+                      <td className="p-3 text-slate-400">{user.email}</td>
+                      <td className="p-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                          user.role === 'admin' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300'
+                        }`}>
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                          user.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+                        }`}>
+                          {user.status === 'Active' ? 'Ativo' : 'Banido'}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right">
+                        {user.role !== 'admin' && (
+                          <button
+                            onClick={() => handleToggleUserBan(user.id)}
+                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                              user.status === 'Active' ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+                            }`}
+                          >
+                            {user.status === 'Active' ? 'Banir Usuário' : 'Reativar Usuário'}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* REPORTS TAB */}
+        {activeTab === 'reports' && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-black text-white">Denúncias de Links Quebrados</h2>
+              <p className="text-xs text-slate-400">Verifique avisos enviados pelos usuários sobre mirrors indisponíveis</p>
+            </div>
+
+            <div className="space-y-3">
+              {reports.length === 0 ? (
+                <p className="text-xs text-slate-500 py-10 text-center">Nenhuma denúncia no sistema.</p>
+              ) : (
+                reports.map((rep) => (
+                  <div key={rep.id} className="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-bold text-white">{rep.gameTitle}</span>
+                        <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded ${
+                          rep.status === 'Pending' ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'
+                        }`}>
+                          {rep.status === 'Pending' ? 'Pendente' : 'Resolvido'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-300 font-mono bg-slate-950 p-2 rounded border border-slate-800/80 mb-1">
+                        URL Reportada: {rep.linkUrl}
+                      </p>
+                      <p className="text-xs text-slate-400">Motivo: "{rep.reason}"</p>
+                    </div>
+
+                    {rep.status === 'Pending' && (
+                      <button
+                        onClick={() => handleResolveReport(rep.id)}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-extrabold text-xs rounded-xl shadow transition-all cursor-pointer shrink-0"
+                      >
+                        Marcar como Resolvido
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* SETTINGS TAB */}
+        {activeTab === 'settings' && (
+          <div className="max-w-2xl space-y-6">
+            <div>
+              <h2 className="text-2xl font-black text-white">Configurações Gerais do Site</h2>
+              <p className="text-xs text-slate-400">Altere credenciais de administrador e avisos globais</p>
+            </div>
+
+            {settingsSavedMsg && (
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl text-xs font-bold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{settingsSavedMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveSettings} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+              
+              <h3 className="text-xs font-extrabold text-blue-400 uppercase tracking-wider mb-2">Credenciais de Acesso do Admin</h3>
+
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">E-mail Autorizado do Admin</label>
+                <input
+                  type="email"
+                  required
+                  value={newAdminEmail}
+                  onChange={(e) => setNewAdminEmail(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">Usuário de Admin</label>
+                <input
+                  type="text"
+                  required
+                  value={newAdminUsername}
+                  onChange={(e) => setNewAdminUsername(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">Nova Senha de Admin</label>
+                <input
+                  type="password"
+                  required
+                  value={newAdminPassword}
+                  onChange={(e) => setNewAdminPassword(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">PIN de Segurança de 4 Dígitos (Censurado)</label>
+                <input
+                  type="password"
+                  required
+                  maxLength={4}
+                  pattern="[0-9]*"
+                  inputMode="numeric"
+                  value={newAdminPin}
+                  onChange={(e) => setNewAdminPin(e.target.value.replace(/[^0-9]/g, ''))}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-cyan-400 font-mono font-bold focus:outline-none focus:border-blue-500 tracking-[0.3em]"
+                />
+              </div>
+
+              <hr className="border-slate-800 my-4" />
+
+              <h3 className="text-xs font-extrabold text-blue-400 uppercase tracking-wider mb-2">Informações do Site</h3>
+
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">Nome / Título do Site</label>
+                <input
+                  type="text"
+                  required
+                  value={newSiteTitle}
+                  onChange={(e) => setNewSiteTitle(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">Texto do Banner de Anúncio Superior</label>
+                <textarea
+                  rows={2}
+                  value={newAnnouncementText}
+                  onChange={(e) => setNewAnnouncementText(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl shadow-lg transition-all cursor-pointer"
+              >
+                <Save className="w-4 h-4" />
+                <span>Salvar Configurações</span>
+              </button>
+
+            </form>
+          </div>
+        )}
+
+      </main>
+
+      {/* GAME ADD / EDIT MODAL */}
+      {isGameModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto">
+          <div className="relative w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl max-h-[90vh] flex flex-col my-auto">
+            
+            <button
+              onClick={() => setIsGameModalOpen(false)}
+              className="absolute top-4 right-4 p-2 rounded-full bg-slate-950 text-slate-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
+              <h3 className="text-lg font-black text-white">
+                {editingGame ? 'Editar Jogo' : 'Adicionar Novo Jogo no Catálogo'}
+              </h3>
+
+              {/* Form vs Live Preview Switch */}
+              <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setPreviewTab('form')}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    previewTab === 'form' ? 'bg-blue-600 text-white' : 'text-slate-400'
+                  }`}
+                >
+                  Formulário
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewTab('preview')}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    previewTab === 'preview' ? 'bg-blue-600 text-white' : 'text-slate-400'
+                  }`}
+                >
+                  Live Preview
+                </button>
+              </div>
+            </div>
+
+            <div className="overflow-y-auto flex-1 pr-1 scrollbar-thin">
+              {previewTab === 'form' ? (
+                <form onSubmit={handleSaveGame} className="space-y-4">
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-slate-300 block mb-1">Nome do Jogo *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Ex: Spider-Man 2 PS4"
+                        value={formTitle}
+                        onChange={(e) => setFormTitle(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-300 block mb-1">Código CUSA / ID *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="CUSA-12345"
+                        value={formCusaCode}
+                        onChange={(e) => setFormCusaCode(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-slate-300 block mb-1">URL Imagem da Capa (Thumbnail) *</label>
+                      <input
+                        type="text"
+                        required
+                        value={formCoverUrl}
+                        onChange={(e) => setFormCoverUrl(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-300 block mb-1">URL Imagem de Banner/Fundo</label>
+                      <input
+                        type="text"
+                        value={formBannerUrl}
+                        onChange={(e) => setFormBannerUrl(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-300 block mb-1">Gêneros (Selecione um ou mais):</label>
+                    <div className="flex flex-wrap gap-2">
+                      {['Ação', 'Aventura', 'RPG', 'Esportes', 'Corrida', 'Luta', 'Terror', 'Mundo Aberto'].map((g) => {
+                        const isSel = formGenres.includes(g);
+                        return (
+                          <button
+                            key={g}
+                            type="button"
+                            onClick={() => {
+                              if (isSel) {
+                                setFormGenres(formGenres.filter(item => item !== g));
+                              } else {
+                                setFormGenres([...formGenres, g]);
+                              }
+                            }}
+                            className={`px-3 py-1 rounded-full text-xs font-semibold cursor-pointer transition-all ${
+                              isSel ? 'bg-blue-600 text-white' : 'bg-slate-950 text-slate-400 border border-slate-800'
+                            }`}
+                          >
+                            {g}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-300 block mb-1">Descrição do Jogo *</label>
+                    <textarea
+                      required
+                      rows={3}
+                      value={formDescription}
+                      onChange={(e) => setFormDescription(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-300 block mb-1">Tamanho *</label>
+                      <input
+                        type="text"
+                        required
+                        value={formSize}
+                        onChange={(e) => setFormSize(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-300 block mb-1">Firmware Mínimo *</label>
+                      <input
+                        type="text"
+                        required
+                        value={formFirmware}
+                        onChange={(e) => setFormFirmware(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-300 block mb-1">Região</label>
+                      <input
+                        type="text"
+                        value={formRegion}
+                        onChange={(e) => setFormRegion(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-300 block mb-1">Data Lançamento</label>
+                      <input
+                        type="date"
+                        value={formReleaseDate}
+                        onChange={(e) => setFormReleaseDate(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-300 block mb-1">Idioma do Jogo</label>
+                    <input
+                      type="text"
+                      value={formLanguage}
+                      onChange={(e) => setFormLanguage(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-300 block mb-1">Link de Download Principal (Google Drive / Direto)</label>
+                      <input
+                        type="url"
+                        required
+                        value={formPrimaryLink}
+                        onChange={(e) => setFormPrimaryLink(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-300 block mb-1">Link Alternativo (MEGA / Torrent)</label>
+                      <input
+                        type="text"
+                        value={formAltLink}
+                        onChange={(e) => setFormAltLink(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-6 pt-2">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={formStatus === 'Active'}
+                        onChange={(e) => setFormStatus(e.target.checked ? 'Active' : 'Inactive')}
+                        className="w-4 h-4 rounded accent-blue-600"
+                      />
+                      <span>Publicar jogo ativo na plataforma</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-amber-400">
+                      <input
+                        type="checkbox"
+                        checked={formFeatured}
+                        onChange={(e) => setFormFeatured(e.target.checked)}
+                        className="w-4 h-4 rounded accent-amber-500"
+                      />
+                      <span>Destacar no Carrossel Principal</span>
+                    </label>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-extrabold text-xs rounded-2xl shadow-lg transition-all cursor-pointer mt-4"
+                  >
+                    Salvar Jogo na Plataforma
+                  </button>
+
+                </form>
+              ) : (
+                /* LIVE PREVIEW */
+                <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-4">
+                  <div className="flex gap-4">
+                    <img src={formCoverUrl} alt="Preview" className="w-24 h-32 object-cover rounded-xl border border-slate-800" />
+                    <div>
+                      <span className="text-[10px] bg-blue-600 text-white font-bold px-2 py-0.5 rounded">{formGenres.join(', ')}</span>
+                      <h3 className="text-lg font-bold text-white mt-1">{formTitle || 'Título do Jogo'}</h3>
+                      <span className="text-xs text-emerald-400 font-bold block">{formSize}</span>
+                      <p className="text-xs text-slate-400 line-clamp-2 mt-1">{formDescription}</p>
+                    </div>
+                  </div>
+                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 text-xs text-slate-300">
+                    <strong>Link do Google Drive:</strong> {formPrimaryLink}
+                  </div>
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+};
