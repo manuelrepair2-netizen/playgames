@@ -108,5 +108,9 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
-// ===== EXPORTAR PARA O RENDER (NÃO USAR app.listen!) =====
-export default app;
+// ===== INICIAR O SERVIDOR COM app.listen() =====
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+  console.log(`📡 API: http://localhost:${PORT}/api/games`);
+  console.log(`🌐 Frontend: http://localhost:${PORT}`);
+});
