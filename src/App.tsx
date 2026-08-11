@@ -25,6 +25,16 @@ import { UserProfileModal } from './components/UserProfileModal';
 import { NotificationsDrawer } from './components/NotificationsDrawer';
 import { AdminPanel } from './components/admin/AdminPanel';
 
+// ===== NOVA FUNÇÃO PARA BUSCAR DO BANCO =====
+const API_URL = '/api';
+
+async function fetchGamesFromAPI() {
+  const response = await fetch(`${API_URL}/games`);
+  if (!response.ok) throw new Error('Erro ao carregar jogos');
+  const data = await response.json();
+  return data.data; // MongoDB retorna { status: 'success', data: [...] }
+}
+
 export default function App() {
   // Global State
   const [games, setGames] = useState<Game[]>([]);
@@ -35,6 +45,10 @@ export default function App() {
   const [settings, setSettings] = useState<SiteSettings>(StorageService.getSettings());
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
+  // ===== ESTADOS DE CARREGAMENTO =====
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   // Modal Control States
   const [selectedGameForDetails, setSelectedGameForDetails] = useState<Game | null>(null);
   const [selectedGameForDownload, setSelectedGameForDownload] = useState<Game | null>(null);
@@ -44,25 +58,52 @@ export default function App() {
   const [isNotificationsDrawerOpen, setIsNotificationsDrawerOpen] = useState<boolean>(false);
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
 
-  // Load and refresh state
-  const loadState = () => {
-    setGames(StorageService.getGames());
+  // ===== FUNÇÃO PARA CARREGAR DADOS =====
+  const loadGames = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const gamesFromAPI = await fetchGamesFromAPI();
+      setGames(gamesFromAPI);
+    } catch (err) {
+      console.error('Erro ao carregar jogos:', err);
+      setError('Não foi possível carregar os jogos. Tente novamente mais tarde.');
+      
+      // Fallback: tentar carregar do Storage local
+      const localGames = StorageService.getGames();
+      if (localGames.length > 0) {
+        setGames(localGames);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ===== LOAD INICIAL =====
+  useEffect(() => {
+    // Inicializar Storage (para categorias, usuários, etc)
+    StorageService.init();
+    
+    // Carregar dados do usuário local
     setCurrentUser(StorageService.getCurrentUser());
     setNotifications(StorageService.getNotifications());
     setSettings(StorageService.getSettings());
     setTheme(StorageService.getTheme());
-  };
 
-  useEffect(() => {
-    // Initial Seed & Load
-    StorageService.init();
-    loadState();
+    // Carregar jogos do MongoDB
+    loadGames();
 
-    // Event listener for state updates across app
-    const handleStateChange = () => loadState();
+    // Event listener para atualizações
+    const handleStateChange = () => {
+      // Recarregar apenas dados locais (não jogos)
+      setCurrentUser(StorageService.getCurrentUser());
+      setNotifications(StorageService.getNotifications());
+      setSettings(StorageService.getSettings());
+      setTheme(StorageService.getTheme());
+    };
     window.addEventListener(EVENT_STATE_CHANGED, handleStateChange);
 
-    // Check if route is /admin or #admin
+    // Verificar rota admin
     if (window.location.pathname === '/admin' || window.location.hash === '#admin') {
       setIsAdminOpen(true);
     }
@@ -71,6 +112,13 @@ export default function App() {
       window.removeEventListener(EVENT_STATE_CHANGED, handleStateChange);
     };
   }, []);
+
+  // ===== FUNÇÃO PARA ATUALIZAR JOGOS (usada pelo admin) =====
+  const refreshGames = async () => {
+    await loadGames();
+    // Disparar evento para atualizar outros componentes
+    window.dispatchEvent(new Event(EVENT_STATE_CHANGED));
+  };
 
   // Unread notifications
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -93,6 +141,43 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // ===== RENDER DE CARREGAMENTO =====
+  if (loading) {
+    return (
+      <div className={`min-h-screen flex flex-col items-center justify-center transition-colors duration-300 ${
+        theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'
+      }`}>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-lg font-semibold">Carregando jogos...</p>
+          <p className="text-sm text-slate-400">Aguardando conexão com o banco de dados</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ===== RENDER DE ERRO =====
+  if (error && games.length === 0) {
+    return (
+      <div className={`min-h-screen flex flex-col items-center justify-center transition-colors duration-300 ${
+        theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'
+      }`}>
+        <div className="flex flex-col items-center gap-4 max-w-md text-center">
+          <div className="text-6xl">⚠️</div>
+          <h2 className="text-2xl font-bold text-red-500">Erro ao carregar dados</h2>
+          <p className="text-slate-400">{error}</p>
+          <button
+            onClick={refreshGames}
+            className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-semibold transition-colors"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ===== RENDER PRINCIPAL =====
   return (
     <div className={`min-h-screen flex flex-col transition-colors duration-300 font-sans ${
       theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'
@@ -255,14 +340,16 @@ export default function App() {
         <NotificationsDrawer
           notifications={notifications}
           onClose={() => setIsNotificationsDrawerOpen(false)}
-          onRefresh={loadState}
+          onRefresh={() => {
+            setNotifications(StorageService.getNotifications());
+          }}
         />
       )}
 
       {isAdminOpen && (
         <AdminPanel
           onCloseAdmin={() => setIsAdminOpen(false)}
-          onRefreshAll={loadState}
+          onRefreshAll={refreshGames}
         />
       )}
 
