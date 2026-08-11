@@ -1,21 +1,44 @@
 import express from "express";
 import path from "path";
-import { connectDB } from './src/database/db';
+import mongoose from 'mongoose';
 import { Game } from './src/models/Game';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(express.json());
-app.use(express.static(path.join(process.cwd(), 'dist')));
 
-// Conectar ao MongoDB
-connectDB();
+// ===== VERIFICAR VARIÁVEIS DE AMBIENTE =====
+console.log('🔍 Verificando variáveis de ambiente...');
+console.log('PORT:', process.env.PORT || '3000 (padrão)');
+console.log('NODE_ENV:', process.env.NODE_ENV || 'development');
 
-// ====== ROTAS DA API ======
+// ===== CONEXÃO AO MONGODB =====
+const MONGODB_URI = process.env.MONGODB_URI;
+console.log('📡 MONGODB_URI:', MONGODB_URI ? '✅ definida' : '❌ NÃO definida');
 
-// Buscar todos os jogos
+if (!MONGODB_URI) {
+  console.error('❌ ERRO FATAL: MONGODB_URI não está definida!');
+  console.log('💡 Configure no Render: Environment → Add Variable → MONGODB_URI');
+  // Fallback para teste (REMOVER DEPOIS!)
+  console.log('🔄 Usando fallback para teste...');
+  const fallbackURI = 'mongodb+srv://manuel:Manuel%231978@cluster0.lzmysuf.mongodb.net/ps4games';
+  mongoose.connect(fallbackURI)
+    .then(() => console.log('✅ Conectado ao MongoDB (fallback)!'))
+    .catch(err => {
+      console.error('❌ Fallback também falhou:', err.message);
+      process.exit(1);
+    });
+} else {
+  mongoose.connect(MONGODB_URI)
+    .then(() => console.log('✅ Conectado ao MongoDB com sucesso!'))
+    .catch(err => {
+      console.error('❌ Erro ao conectar:', err.message);
+      process.exit(1);
+    });
+}
+
+// ===== ROTAS DA API =====
 app.get('/api/games', async (req, res) => {
   try {
     const games = await Game.find();
@@ -25,61 +48,23 @@ app.get('/api/games', async (req, res) => {
   }
 });
 
-// Adicionar novo jogo
-app.post('/api/games', async (req, res) => {
-  try {
-    const game = new Game(req.body);
-    await game.save();
-    res.json({ status: 'success', data: game });
-  } catch (error) {
-    res.status(500).json({ status: 'error', message: 'Erro ao adicionar jogo' });
-  }
+// ===== ROTA DE TESTE PARA VARIÁVEIS DE AMBIENTE =====
+app.get('/api/test-env', (req, res) => {
+  res.json({
+    hasMongoURI: !!process.env.MONGODB_URI,
+    nodeEnv: process.env.NODE_ENV,
+    port: process.env.PORT,
+    status: 'Servidor rodando!'
+  });
 });
 
-// Atualizar jogo
-app.put('/api/games/:id', async (req, res) => {
-  try {
-    const game = await Game.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json({ status: 'success', data: game });
-  } catch (error) {
-    res.status(500).json({ status: 'error', message: 'Erro ao atualizar jogo' });
-  }
-});
+// Servir arquivos estáticos
+const distPath = path.join(process.cwd(), 'dist');
+app.use(express.static(distPath));
 
-// Deletar jogo
-app.delete('/api/games/:id', async (req, res) => {
-  try {
-    await Game.findByIdAndDelete(req.params.id);
-    res.json({ status: 'success', message: 'Jogo deletado com sucesso' });
-  } catch (error) {
-    res.status(500).json({ status: 'error', message: 'Erro ao deletar jogo' });
-  }
-});
-
-// Estatísticas
-app.get('/api/stats', async (req, res) => {
-  try {
-    const totalGames = await Game.countDocuments();
-    const totalDownloads = await Game.aggregate([{ $group: { _id: null, total: { $sum: '$downloads' } } }]);
-    res.json({
-      status: 'success',
-      totalGames,
-      totalDownloads: totalDownloads[0]?.total || 0,
-      totalUsers: 1480, // Será implementado depois
-      newGamesThisWeek: 3
-    });
-  } catch (error) {
-    res.status(500).json({ status: 'error', message: 'Erro ao buscar estatísticas' });
-  }
-});
-
-// Fallback para React
+// Fallback para SPA
 app.get('*', (req, res) => {
-  res.sendFile(path.join(process.cwd(), 'dist', 'index.html'));
+  res.sendFile(path.join(distPath, 'index.html'));
 });
 
-// Iniciar servidor (NÃO USAR NO RENDER - ver abaixo)
-// app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
-
-// Exportar para o Render (usar isso!)
 export default app;
