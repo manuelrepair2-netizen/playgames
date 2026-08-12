@@ -83,6 +83,33 @@ export const GameDetailsModal: React.FC<GameDetailsModalProps> = ({
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
+  // ===== FUNÇÃO DE DOWNLOAD COM CONTADOR =====
+  const handleDownload = async (url: string, type: 'pc' | 'ps4') => {
+    try {
+      console.log(`📊 Incrementando download para ${game.title}`);
+      
+      const response = await fetch(`/api/games/${game.id}/download`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`✅ Download registrado! Novo total: ${data.data.downloadsCount}`);
+      } else {
+        console.warn('⚠️ Erro ao incrementar contador, mas continuando...');
+      }
+      
+      console.log(`🔗 Abrindo link para ${type.toUpperCase()}:`, url);
+      window.open(url, '_blank');
+      
+    } catch (error) {
+      console.error('❌ Erro no download:', error);
+      // Mesmo com erro, abrir o link
+      window.open(url, '_blank');
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto bg-slate-950/80 backdrop-blur-md">
       <div 
@@ -269,16 +296,12 @@ export const GameDetailsModal: React.FC<GameDetailsModalProps> = ({
                 </button>
               </div>
 
-              {/* Download Buttons - Abrem diretamente com window.open */}
+              {/* Download Buttons - AGORA COM CONTADOR */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Primeiro link = PC */}
                 {game.downloadLinks.length > 0 && (
                   <button
-                    onClick={() => {
-                      const url = game.downloadLinks[0].url;
-                      console.log('🔗 Abrindo link para PC:', url);
-                      window.open(url, '_blank');
-                    }}
+                    onClick={() => handleDownload(game.downloadLinks[0].url, 'pc')}
                     className="flex items-center justify-between p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/50 transition-all text-left group cursor-pointer"
                   >
                     <div>
@@ -296,11 +319,7 @@ export const GameDetailsModal: React.FC<GameDetailsModalProps> = ({
                 {/* Segundo link = PS4 */}
                 {game.downloadLinks.length > 1 && (
                   <button
-                    onClick={() => {
-                      const url = game.downloadLinks[1].url;
-                      console.log('🔗 Abrindo link para PS4:', url);
-                      window.open(url, '_blank');
-                    }}
+                    onClick={() => handleDownload(game.downloadLinks[1].url, 'ps4')}
                     className="flex items-center justify-between p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-purple-500/50 transition-all text-left group cursor-pointer"
                   >
                     <div>
@@ -430,4 +449,3 @@ export const GameDetailsModal: React.FC<GameDetailsModalProps> = ({
     </div>
   );
 };
-

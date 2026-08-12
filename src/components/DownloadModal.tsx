@@ -11,15 +11,26 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({ game, onClose }) =
   
   const handleDownload = async (url: string, type: 'pc' | 'ps4') => {
     try {
-      // Incrementar contador de downloads no MongoDB
-      await fetch(`/api/games/${game.id}/download`, {
-        method: 'POST'
+      // 1. INCREMENTAR CONTADOR NO MONGODB
+      console.log(`📊 Incrementando download para ${game.title}`);
+      const response = await fetch(`/api/games/${game.id}/download`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
       });
-      console.log(`📥 Baixando para ${type.toUpperCase()}:`, url);
-      // Abrir link em nova aba
+      
+      if (!response.ok) {
+        console.warn('⚠️ Erro ao incrementar contador, mas continuando...');
+      } else {
+        const data = await response.json();
+        console.log(`✅ Download registrado! Novo total: ${data.data.downloadsCount}`);
+      }
+      
+      // 2. ABRIR LINK DE DOWNLOAD
+      console.log(`🔗 Abrindo link para ${type.toUpperCase()}:`, url);
       window.open(url, '_blank');
+      
     } catch (error) {
-      console.error('Erro ao registrar download:', error);
+      console.error('❌ Erro no download:', error);
       // Mesmo com erro, abrir o link
       window.open(url, '_blank');
     }
@@ -29,7 +40,6 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({ game, onClose }) =
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
       <div className="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl">
         
-        {/* Botão Fechar */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-2 rounded-full bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
@@ -37,7 +47,6 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({ game, onClose }) =
           <X className="w-5 h-5" />
         </button>
 
-        {/* Capa do Jogo */}
         <div className="flex items-center gap-4 mb-4">
           <img 
             src={game.coverUrl} 
@@ -54,16 +63,11 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({ game, onClose }) =
           Escolha a opção de download:
         </p>
 
-        {/* Botões de Download - AGORA ABREM DIRETO */}
         <div className="space-y-3">
-          {/* Primeiro link = PC */}
+          {/* PC */}
           {game.downloadLinks.length > 0 && (
             <button
-              onClick={() => {
-                console.log('🔗 Abrindo link para PC:', game.downloadLinks[0].url);
-                window.open(game.downloadLinks[0].url, '_blank');
-                onClose();
-              }}
+              onClick={() => handleDownload(game.downloadLinks[0].url, 'pc')}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-600/30"
             >
               <Download className="w-4 h-4" />
@@ -72,14 +76,10 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({ game, onClose }) =
             </button>
           )}
 
-          {/* Segundo link = PS4 */}
+          {/* PS4 */}
           {game.downloadLinks.length > 1 && (
             <button
-              onClick={() => {
-                console.log('🔗 Abrindo link para PS4:', game.downloadLinks[1].url);
-                window.open(game.downloadLinks[1].url, '_blank');
-                onClose();
-              }}
+              onClick={() => handleDownload(game.downloadLinks[1].url, 'ps4')}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-purple-600/30"
             >
               <Download className="w-4 h-4" />

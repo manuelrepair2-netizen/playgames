@@ -52,7 +52,11 @@ app.post('/api/games', async (req, res) => {
 // Atualizar jogo
 app.put('/api/games/:id', async (req, res) => {
   try {
-    const game = await Game.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const game = await Game.findByIdAndUpdate(
+      req.params.id, 
+      req.body, 
+      { returnDocument: 'after' }  // ← CORRIGIDO (era { new: true })
+    );
     if (!game) {
       return res.status(404).json({ status: 'error', message: 'Jogo não encontrado' });
     }
@@ -74,6 +78,31 @@ app.delete('/api/games/:id', async (req, res) => {
   } catch (error) {
     console.error('Erro ao deletar jogo:', error);
     res.status(500).json({ status: 'error', message: 'Erro ao deletar jogo' });
+  }
+});
+
+// ===== ROTA PARA INCREMENTAR DOWNLOAD =====
+app.post('/api/games/:id/download', async (req, res) => {
+  try {
+    console.log(`📊 Incrementando download para ID: ${req.params.id}`);
+    
+    const game = await Game.findByIdAndUpdate(
+      req.params.id,
+      { $inc: { downloadsCount: 1 } },
+      { returnDocument: 'after' }
+    );
+    
+    if (!game) {
+      console.log('❌ Jogo não encontrado');
+      return res.status(404).json({ status: 'error', message: 'Jogo não encontrado' });
+    }
+    
+    console.log(`✅ Novo total de downloads: ${game.downloadsCount}`);
+    res.json({ status: 'success', data: game });
+    
+  } catch (error) {
+    console.error('❌ Erro ao incrementar download:', error);
+    res.status(500).json({ status: 'error', message: 'Erro ao incrementar download' });
   }
 });
 

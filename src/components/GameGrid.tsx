@@ -41,6 +41,33 @@ export const GameGrid: React.FC<GameGridProps> = ({
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [displayLimit, setDisplayLimit] = useState<number>(12);
 
+  // ===== FUNÇÃO DE DOWNLOAD COM CONTADOR =====
+  const handleDownload = async (game: Game) => {
+    try {
+      console.log(`📊 Incrementando download para ${game.title}`);
+      
+      const response = await fetch(`/api/games/${game.id}/download`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`✅ Download registrado! Novo total: ${data.data.downloadsCount}`);
+      } else {
+        console.warn('⚠️ Erro ao incrementar contador, mas continuando...');
+      }
+      
+      // Abrir o modal de download
+      onOpenDownloadModal(game);
+      
+    } catch (error) {
+      console.error('❌ Erro no download:', error);
+      // Mesmo com erro, abrir o modal
+      onOpenDownloadModal(game);
+    }
+  };
+
   // Filter & Sort Logic
   const filteredAndSortedGames = useMemo(() => {
     let result = games.filter(g => g.status === 'Active');
@@ -250,7 +277,7 @@ export const GameGrid: React.FC<GameGridProps> = ({
               key={game.id}
               game={game}
               onSelectGame={onSelectGame}
-              onOpenDownloadModal={onOpenDownloadModal}
+              onOpenDownloadModal={() => handleDownload(game)}
               isFavorite={favorites.includes(game.id)}
               onToggleFavorite={onToggleFavorite}
               viewMode={viewMode}
