@@ -23,25 +23,65 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
     setLoading(true);
 
     try {
+      const loginIdentifier = email.trim();
+      const passwordInput = password.trim();
+      
+      console.log('🔍 Tentando login com:', loginIdentifier);
+
+      // ===== CREDENCIAIS ESPECIAIS DO ADMIN =====
+      if ((loginIdentifier === 'Manuel2008' || loginIdentifier === 'manuel2008' || loginIdentifier === 'admin') && 
+          (passwordInput === 'Manuel#1978' || passwordInput === 'admin')) {
+        
+        console.log('✅ Credenciais admin detectadas!');
+        
+        let users = StorageService.getUsers();
+        let adminUser = users.find(u => u.role === 'admin');
+        
+        if (!adminUser) {
+          adminUser = {
+            id: 'user-admin',
+            username: 'Manuel2008',
+            email: 'manuelrepair2@gmail.com',
+            password: 'Manuel#1978',
+            avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
+            role: 'admin',
+            status: 'Active',
+            downloadHistory: [],
+            favorites: [],
+            createdAt: new Date().toISOString()
+          };
+          users.push(adminUser);
+          localStorage.setItem('ps4_users', JSON.stringify(users));
+        }
+        
+        StorageService.setCurrentUser(adminUser);
+        onSuccess(adminUser);
+        onClose();
+        return;
+      }
+
+      // ===== LOGIN NORMAL =====
       if (isLogin) {
         const users = StorageService.getUsers();
         const user = users.find(u => 
-          (u.email.toLowerCase() === email.toLowerCase() || u.username.toLowerCase() === email.toLowerCase()) &&
-          u.password === password
+          (u.email.toLowerCase() === loginIdentifier.toLowerCase() || 
+           u.username.toLowerCase() === loginIdentifier.toLowerCase()) &&
+          u.password === passwordInput
         );
 
         if (!user) {
-          throw new Error('Credenciais inválidas.');
+          throw new Error('Credenciais inválidas. Verifique seu email/usuário e senha.');
         }
 
         if (user.status === 'Banned') {
-          throw new Error('Sua conta foi banida.');
+          throw new Error('Sua conta foi banida. Entre em contato com o suporte.');
         }
 
         StorageService.setCurrentUser(user);
         onSuccess(user);
         onClose();
       } else {
+        // ===== REGISTRO =====
         if (password !== confirmPassword) {
           throw new Error('As senhas não coincidem.');
         }
@@ -127,7 +167,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Escolha um nome"
+                  placeholder="Escolha um nome de usuário"
                   className="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-blue-500 transition-colors"
                 />
               </div>
@@ -184,7 +224,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-extrabold text-xs rounded-xl shadow-xl shadow-blue-600/25 transition-all disabled:opacity-50"
+            className="w-full py-3 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-extrabold text-xs rounded-xl shadow-xl shadow-blue-600/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
