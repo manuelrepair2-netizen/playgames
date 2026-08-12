@@ -9,13 +9,14 @@ interface DownloadModalProps {
 
 export const DownloadModal: React.FC<DownloadModalProps> = ({ game, onClose }) => {
   
-  const handleDownload = async (url: string) => {
+  const handleDownload = async (url: string, type: 'pc' | 'ps4') => {
     try {
       // Incrementar contador de downloads no MongoDB
       await fetch(`/api/games/${game.id}/download`, {
         method: 'POST'
       });
-      // Abrir link de download
+      console.log(`📥 Baixando para ${type.toUpperCase()}:`, url);
+      // Abrir link em nova aba
       window.open(url, '_blank');
     } catch (error) {
       console.error('Erro ao registrar download:', error);
@@ -53,12 +54,16 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({ game, onClose }) =
           Escolha a opção de download:
         </p>
 
-        {/* Botões de Download */}
+        {/* Botões de Download - AGORA ABREM DIRETO */}
         <div className="space-y-3">
           {/* Primeiro link = PC */}
           {game.downloadLinks.length > 0 && (
             <button
-              onClick={() => handleDownload(game.downloadLinks[0].url)}
+              onClick={() => {
+                console.log('🔗 Abrindo link para PC:', game.downloadLinks[0].url);
+                window.open(game.downloadLinks[0].url, '_blank');
+                onClose();
+              }}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-600/30"
             >
               <Download className="w-4 h-4" />
@@ -70,7 +75,11 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({ game, onClose }) =
           {/* Segundo link = PS4 */}
           {game.downloadLinks.length > 1 && (
             <button
-              onClick={() => handleDownload(game.downloadLinks[1].url)}
+              onClick={() => {
+                console.log('🔗 Abrindo link para PS4:', game.downloadLinks[1].url);
+                window.open(game.downloadLinks[1].url, '_blank');
+                onClose();
+              }}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-purple-600/30"
             >
               <Download className="w-4 h-4" />

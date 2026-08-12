@@ -249,7 +249,7 @@ export const GameDetailsModal: React.FC<GameDetailsModalProps> = ({
               </p>
             </div>
 
-            {/* Download Links Box & Report Trigger */}
+            {/* ===== SEÇÃO DE DOWNLOAD CORRIGIDA ===== */}
             <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5 shadow-inner">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
                 <div>
@@ -271,12 +271,15 @@ export const GameDetailsModal: React.FC<GameDetailsModalProps> = ({
                 </button>
               </div>
 
-              {/* Download Buttons Grid - MODIFICADO AQUI */}
+              {/* Download Buttons - ABREM DIRETO */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Primeiro link = PC */}
+                {/* PC */}
                 {game.downloadLinks.length > 0 && (
                   <button
-                    onClick={() => onOpenDownloadModal(game)}
+                    onClick={() => {
+                      console.log('🔗 Abrindo link para PC:', game.downloadLinks[0].url);
+                      window.open(game.downloadLinks[0].url, '_blank');
+                    }}
                     className="flex items-center justify-between p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/50 transition-all text-left group cursor-pointer"
                   >
                     <div>
@@ -291,10 +294,13 @@ export const GameDetailsModal: React.FC<GameDetailsModalProps> = ({
                   </button>
                 )}
 
-                {/* Segundo link = PS4 */}
+                {/* PS4 */}
                 {game.downloadLinks.length > 1 && (
                   <button
-                    onClick={() => onOpenDownloadModal(game)}
+                    onClick={() => {
+                      console.log('🔗 Abrindo link para PS4:', game.downloadLinks[1].url);
+                      window.open(game.downloadLinks[1].url, '_blank');
+                    }}
                     className="flex items-center justify-between p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-purple-500/50 transition-all text-left group cursor-pointer"
                   >
                     <div>
