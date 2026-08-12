@@ -197,6 +197,8 @@ export default function App() {
         unreadNotificationsCount={unreadCount}
         theme={theme}
         onToggleTheme={handleToggleTheme}
+        games={games}  
+      
       />
 
       {/* Main Body */}

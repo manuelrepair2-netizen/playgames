@@ -258,7 +258,7 @@ export const GameDetailsModal: React.FC<GameDetailsModalProps> = ({
                     <span>Links de Download Disponíveis</span>
                   </h4>
                   <p className="text-xs text-slate-400">
-                    Servidores verificados e livres de vírus. Arquivos PKG de instalação direta.
+                    Escolha a opção de download para PC ou PS4.
                   </p>
                 </div>
 
@@ -271,25 +271,43 @@ export const GameDetailsModal: React.FC<GameDetailsModalProps> = ({
                 </button>
               </div>
 
-              {/* Download Buttons Grid */}
+              {/* Download Buttons Grid - MODIFICADO AQUI */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {game.downloadLinks.map((link) => (
+                {/* Primeiro link = PC */}
+                {game.downloadLinks.length > 0 && (
                   <button
-                    key={link.id}
                     onClick={() => onOpenDownloadModal(game)}
                     className="flex items-center justify-between p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/50 transition-all text-left group cursor-pointer"
                   >
                     <div>
                       <span className="text-xs font-bold text-slate-200 group-hover:text-emerald-400 transition-colors block">
-                        {link.label}
+                        Link de Download para PC
                       </span>
                       <span className="text-[10px] text-slate-500 uppercase font-mono">
-                        Servidor: {link.type}
+                        Baixar para PC
                       </span>
                     </div>
                     <Download className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
                   </button>
-                ))}
+                )}
+
+                {/* Segundo link = PS4 */}
+                {game.downloadLinks.length > 1 && (
+                  <button
+                    onClick={() => onOpenDownloadModal(game)}
+                    className="flex items-center justify-between p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-purple-500/50 transition-all text-left group cursor-pointer"
+                  >
+                    <div>
+                      <span className="text-xs font-bold text-slate-200 group-hover:text-purple-400 transition-colors block">
+                        Link para PS4
+                      </span>
+                      <span className="text-[10px] text-slate-500 uppercase font-mono">
+                        Baixar para PS4
+                      </span>
+                    </div>
+                    <Download className="w-4 h-4 text-purple-400 group-hover:scale-110 transition-transform" />
+                  </button>
+                )}
               </div>
             </div>
 

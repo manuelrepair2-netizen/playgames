@@ -1,38 +1,33 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Search, 
+  User, 
   Bell, 
-  User as UserIcon, 
-  Gamepad2, 
-  Sun, 
-  Moon, 
-  ShieldAlert, 
-  LogOut, 
-  Sparkles, 
+  Menu, 
   X, 
-  Star, 
-  Download,
-  Flame,
-  CheckCircle2,
+  Gamepad2, 
   Settings,
-  Bookmark
+  LogOut,
+  Moon,
+  Sun,
+  ShieldAlert
 } from 'lucide-react';
-import { Game, User, SiteNotification, Category } from '../types';
-import { StorageService } from '../services/storage';
+import { Category, Game, User as UserType } from '../types';
 
 interface HeaderProps {
   categories: Category[];
   activeCategory: string;
-  onSelectCategory: (categorySlug: string) => void;
+  onSelectCategory: (category: string) => void;
   onSelectGame: (game: Game) => void;
   onOpenAuth: () => void;
   onOpenProfile: () => void;
   onOpenNotifications: () => void;
   onOpenAdmin: () => void;
-  currentUser: User | null;
+  currentUser: UserType | null;
   unreadNotificationsCount: number;
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
+  games: Game[]; // ← ADICIONAR ESTA PROP
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -47,232 +42,250 @@ export const Header: React.FC<HeaderProps> = ({
   currentUser,
   unreadNotificationsCount,
   theme,
-  onToggleTheme
+  onToggleTheme,
+  games // ← RECEBER JOGOS
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [searchResults, setSearchResults] = useState<Game[]>([]);
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (searchQuery.trim().length > 0) {
-      const allGames = StorageService.getGames();
-      const q = searchQuery.toLowerCase();
-      const filtered = allGames.filter(
-        g => g.status === 'Active' && (
-          g.title.toLowerCase().includes(q) ||
-          g.genres.some(gen => gen.toLowerCase().includes(q)) ||
-          g.developer.toLowerCase().includes(q) ||
-          g.cusaCode.toLowerCase().includes(q)
-        )
-      ).slice(0, 6);
-      setSearchResults(filtered);
-    } else {
-      setSearchResults([]);
-    }
-  }, [searchQuery]);
+  // ===== PESQUISAR JOGOS (USANDO DADOS DO MONGODB) =====
+  const searchResults = searchQuery.trim() 
+    ? games.filter(g => 
+        g.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        g.genres?.some(genre => genre.toLowerCase().includes(searchQuery.toLowerCase()))
+      )
+    : [];
 
-  // Keyboard shortcut Ctrl+K
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  const handleSelectSearchResult = (game: Game) => {
-    onSelectGame(game);
-    setSearchQuery('');
-    setIsSearchFocused(false);
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    setShowSearchResults(query.length > 0);
   };
 
-  return (
-    <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-slate-950/85 dark:bg-slate-950/90 border-b border-slate-800/80 transition-colors duration-200">
-      {/* Top Banner / Announcement */}
-      <div className="bg-gradient-to-r from-blue-700 via-indigo-600 to-cyan-600 text-white text-xs py-1.5 px-4 text-center font-medium flex items-center justify-center gap-2 shadow-sm">
-        <Sparkles className="w-3.5 h-3.5 animate-pulse text-cyan-200" />
-        <span>🔥 NOVIDADE: Servidores no Google Drive com velocidade máxima sem limites!</span>
-        <span className="hidden md:inline-block bg-white/20 text-white text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ml-2">v9.00 / v11.00</span>
-      </div>
+  const handleSelectGame = (game: Game) => {
+    onSelectGame(game);
+    setSearchQuery('');
+    setShowSearchResults(false);
+  };
 
+  // Fechar resultados ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSearchResults(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <header className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur-md border-b border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-3">
+        <div className="flex items-center justify-between h-16">
           
           {/* Logo */}
-          <div className="flex items-center gap-3 cursor-pointer group" onClick={() => onSelectCategory('todos')}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-blue-500 to-cyan-400 p-0.5 shadow-lg shadow-blue-500/20 group-hover:scale-105 transition-transform duration-200">
-              <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
-                <Gamepad2 className="w-5 h-5 text-blue-400 group-hover:rotate-12 transition-transform duration-300" />
-              </div>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-black text-sm shadow-md">
+              PS4
             </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-white via-slate-100 to-blue-200 bg-clip-text text-transparent">
-                  PS4<span className="text-blue-500 font-black">GAMES</span>
-                </span>
-                <span className="text-[10px] font-bold uppercase bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1.5 py-0.2 rounded">
-                  VAULT
-                </span>
-              </div>
-              <p className="text-[10px] text-slate-400 font-medium hidden sm:block">
-                Download Direct & PKG High-Speed
-              </p>
-            </div>
+            <span className="font-extrabold text-lg text-white tracking-wider hidden sm:block">
+              PS4 Games
+            </span>
           </div>
 
-          {/* Search Bar with Autocomplete */}
-          <div className="relative flex-1 max-w-md mx-2">
+          {/* Barra de Pesquisa */}
+          <div className="flex-1 max-w-xl mx-4 relative" ref={searchRef}>
             <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <input
-                ref={searchInputRef}
                 type="text"
-                placeholder="Buscar jogos, gêneros, CUSA..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => setIsSearchFocused(true)}
-                onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-                className="w-full pl-10 pr-12 py-2 text-sm bg-slate-900/90 border border-slate-700/70 rounded-full text-slate-100 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                onChange={handleSearch}
+                onFocus={() => searchQuery && setShowSearchResults(true)}
+                placeholder="Pesquisar jogos..."
+                className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
               />
-              {searchQuery ? (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-white rounded-full"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              ) : (
-                <span className="hidden sm:inline-block absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-slate-400 bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded">
-                  Ctrl+K
-                </span>
-              )}
             </div>
 
-            {/* Search Dropdown Results */}
-            {isSearchFocused && searchResults.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-2 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden z-50 divide-y divide-slate-800/60">
-                <div className="p-2 text-[11px] font-semibold text-slate-400 uppercase tracking-wider bg-slate-950/60 flex items-center justify-between">
-                  <span>Resultados ({searchResults.length})</span>
-                  <span className="text-blue-400 text-[10px]">Pressione para abrir</span>
-                </div>
-                {searchResults.map((game) => (
-                  <div
+            {/* Resultados da Pesquisa */}
+            {showSearchResults && searchResults.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden max-h-80 overflow-y-auto">
+                {searchResults.slice(0, 8).map((game) => (
+                  <button
                     key={game.id}
-                    onClick={() => handleSelectSearchResult(game)}
-                    className="flex items-center gap-3 p-2.5 hover:bg-slate-800/80 cursor-pointer transition-colors group"
+                    onClick={() => handleSelectGame(game)}
+                    className="w-full flex items-center gap-3 p-3 hover:bg-slate-800 transition-colors text-left"
                   >
-                    <img
-                      src={game.coverUrl}
-                      alt={game.title}
-                      className="w-10 h-12 object-cover rounded-md shadow group-hover:scale-105 transition-transform"
+                    <img 
+                      src={game.coverUrl} 
+                      alt={game.title} 
+                      className="w-10 h-14 object-cover rounded-md"
                     />
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-semibold text-slate-100 truncate group-hover:text-blue-400 transition-colors">
-                        {game.title}
-                      </h4>
-                      <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
-                        <span className="text-blue-300 font-medium">{game.genres.slice(0, 2).join(', ')}</span>
-                        <span>•</span>
-                        <span className="text-emerald-400 font-medium">{game.size}</span>
-                      </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-100 block">{game.title}</span>
+                      <span className="text-[10px] text-slate-400">{game.genres?.join(', ')}</span>
                     </div>
-                    <div className="flex items-center gap-1 text-amber-400 text-xs font-bold pr-1">
-                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                      <span>{game.rating}</span>
-                    </div>
-                  </div>
+                  </button>
                 ))}
+                {searchResults.length > 8 && (
+                  <div className="p-2 text-center text-xs text-slate-500 border-t border-slate-800">
+                    Mais {searchResults.length - 8} resultados...
+                  </div>
+                )}
+              </div>
+            )}
+
+            {showSearchResults && searchQuery && searchResults.length === 0 && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-4 text-center">
+                <p className="text-xs text-slate-400">Nenhum jogo encontrado para "{searchQuery}"</p>
               </div>
             )}
           </div>
 
-          {/* Right Action Controls */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          {/* Ações do Usuário */}
+          <div className="flex items-center gap-2">
+            {/* Tema */}
+            <button
+              onClick={onToggleTheme}
+              className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
 
-            {/* Notifications Button */}
+            {/* Notificações */}
             <button
               onClick={onOpenNotifications}
-              className="relative p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 transition-colors"
-              title="Notificações do site"
+              className="relative p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
             >
               <Bell className="w-4 h-4" />
               {unreadNotificationsCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-blue-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-bounce shadow-md">
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                   {unreadNotificationsCount}
                 </span>
               )}
             </button>
 
-            {/* Admin Quick Switcher / Link */}
-            <button
-              onClick={onOpenAdmin}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl bg-slate-900 hover:bg-slate-800 text-cyan-400 border border-cyan-500/30 hover:border-cyan-500/60 transition-all shadow-sm"
-              title="Painel Administrativo (/admin)"
-            >
-              <ShieldAlert className="w-3.5 h-3.5" />
-              <span>Painel Admin</span>
-            </button>
+            {/* Admin (se for admin) */}
+            {currentUser?.role === 'admin' && (
+              <button
+                onClick={onOpenAdmin}
+                className="p-2 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 transition-colors"
+              >
+                <ShieldAlert className="w-4 h-4" />
+              </button>
+            )}
 
-            {/* User Profile / Auth Button */}
+            {/* Perfil / Login */}
             {currentUser ? (
               <button
                 onClick={onOpenProfile}
-                className="flex items-center gap-2 p-1.5 pl-2.5 rounded-full bg-slate-900 hover:bg-slate-800 border border-slate-800 transition-all group"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 transition-colors"
               >
-                <img
-                  src={currentUser.avatarUrl}
-                  alt={currentUser.username}
-                  className="w-7 h-7 rounded-full object-cover border border-blue-500/40"
+                <img 
+                  src={currentUser.avatarUrl} 
+                  alt={currentUser.username} 
+                  className="w-6 h-6 rounded-full object-cover"
                 />
-                <span className="text-xs font-semibold text-slate-200 group-hover:text-blue-400 hidden md:inline-block truncate max-w-[100px]">
+                <span className="text-xs font-bold text-slate-200 hidden sm:block">
                   {currentUser.username}
                 </span>
-                {currentUser.role === 'admin' && (
-                  <span className="text-[9px] bg-blue-600 text-white font-bold px-1.5 py-0.5 rounded-full uppercase">
-                    Admin
-                  </span>
-                )}
               </button>
             ) : (
               <button
                 onClick={onOpenAuth}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-blue-600/25 transition-all transform active:scale-95"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl transition-colors"
               >
-                <UserIcon className="w-3.5 h-3.5" />
-                <span>Entrar / Cadastrar</span>
+                <User className="w-4 h-4" />
+                <span className="hidden sm:inline">Entrar</span>
               </button>
             )}
 
+            {/* Menu Mobile */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            >
+              {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
-
         </div>
 
-        {/* Category Navigation Bar */}
-        <div className="flex items-center gap-1.5 overflow-x-auto py-2.5 scrollbar-none border-t border-slate-800/50">
-          {categories.map((cat) => {
-            const isActive = activeCategory === cat.slug;
-            return (
-              <button
-                key={cat.id}
-                onClick={() => onSelectCategory(cat.slug)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-200 flex items-center gap-1.5 ${
-                  isActive
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 font-semibold scale-105'
-                    : 'bg-slate-900/80 text-slate-400 hover:text-slate-100 hover:bg-slate-800 border border-slate-800/80'
-                }`}
-              >
-                {cat.slug === 'todos' && <Flame className="w-3 h-3 text-amber-400" />}
-                {cat.name}
-              </button>
-            );
-          })}
+        {/* Categorias */}
+        <div className="flex items-center gap-1 py-2 overflow-x-auto scrollbar-hide">
+          <button
+            onClick={() => onSelectCategory('todos')}
+            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+              activeCategory === 'todos'
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+            }`}
+          >
+            Todos
+          </button>
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => onSelectCategory(cat.slug)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+                activeCategory === cat.slug
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+              }`}
+            >
+              {cat.name}
+            </button>
+          ))}
         </div>
-
       </div>
+
+      {/* Menu Mobile */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden bg-slate-900 border-t border-slate-800 p-4">
+          <div className="flex flex-col gap-2">
+            {currentUser ? (
+              <>
+                <button
+                  onClick={() => { onOpenProfile(); setIsMobileMenuOpen(false); }}
+                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-800 transition-colors"
+                >
+                  <img src={currentUser.avatarUrl} alt="" className="w-8 h-8 rounded-full" />
+                  <span className="text-sm font-bold text-slate-100">{currentUser.username}</span>
+                </button>
+                <button
+                  onClick={() => { onOpenAdmin(); setIsMobileMenuOpen(false); }}
+                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                >
+                  <ShieldAlert className="w-5 h-5" /> Admin
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => { onOpenAuth(); setIsMobileMenuOpen(false); }}
+                className="flex items-center gap-3 p-3 rounded-xl bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 transition-colors"
+              >
+                <User className="w-5 h-5" /> Entrar / Cadastrar
+              </button>
+            )}
+            <hr className="border-slate-800" />
+            <button
+              onClick={() => { onOpenNotifications(); setIsMobileMenuOpen(false); }}
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            >
+              <Bell className="w-5 h-5" /> Notificações
+            </button>
+            <button
+              onClick={() => { onToggleTheme(); setIsMobileMenuOpen(false); }}
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            >
+              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              {theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}
+            </button>
+          </div>
+        </div>
+      )}
     </header>
   );
 };
