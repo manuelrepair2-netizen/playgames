@@ -43,10 +43,18 @@ export const GameGrid: React.FC<GameGridProps> = ({
 
   // ===== FUNÇÃO DE DOWNLOAD COM CONTADOR =====
   const handleDownload = async (game: Game) => {
+    const gameId = game._id || game.id;
+    
+    if (!gameId) {
+      console.error('❌ ID do jogo não encontrado!');
+      onOpenDownloadModal(game);
+      return;
+    }
+    
     try {
-      console.log(`📊 Incrementando download para ${game.title}`);
+      console.log(`📊 Incrementando download para ${game.title} (ID: ${gameId})`);
       
-      const response = await fetch(`/api/games/${game.id}/download`, {
+      const response = await fetch(`/api/games/${gameId}/download`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -58,12 +66,10 @@ export const GameGrid: React.FC<GameGridProps> = ({
         console.warn('⚠️ Erro ao incrementar contador, mas continuando...');
       }
       
-      // Abrir o modal de download
       onOpenDownloadModal(game);
       
     } catch (error) {
       console.error('❌ Erro no download:', error);
-      // Mesmo com erro, abrir o modal
       onOpenDownloadModal(game);
     }
   };
@@ -72,7 +78,6 @@ export const GameGrid: React.FC<GameGridProps> = ({
   const filteredAndSortedGames = useMemo(() => {
     let result = games.filter(g => g.status === 'Active');
 
-    // Category filter
     if (selectedCategory && selectedCategory !== 'todos') {
       const categoryNameMap: { [key: string]: string } = {
         'acao': 'Ação',
@@ -90,17 +95,14 @@ export const GameGrid: React.FC<GameGridProps> = ({
       );
     }
 
-    // Region Filter
     if (regionFilter !== 'all') {
       result = result.filter(g => g.region.toLowerCase().includes(regionFilter.toLowerCase()));
     }
 
-    // Min Rating Filter
     if (minRatingFilter > 0) {
       result = result.filter(g => g.rating >= minRatingFilter);
     }
 
-    // Sorting
     return result.sort((a, b) => {
       if (sortBy === 'newest') {
         return new Date(b.releaseDate || b.createdAt).getTime() - new Date(a.releaseDate || a.createdAt).getTime();
@@ -141,11 +143,9 @@ export const GameGrid: React.FC<GameGridProps> = ({
   return (
     <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       
-      {/* Controls Bar: Sorting & Filter options */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 mb-6 shadow-xl backdrop-blur-md">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           
-          {/* Header Title & Counter */}
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30">
               <Gamepad2 className="w-5 h-5" />
@@ -163,10 +163,8 @@ export const GameGrid: React.FC<GameGridProps> = ({
             </div>
           </div>
 
-          {/* Filter Dropdowns & Controls */}
           <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
             
-            {/* Sort Dropdown */}
             <div className="relative flex-1 sm:flex-initial">
               <select
                 value={sortBy}
@@ -182,7 +180,6 @@ export const GameGrid: React.FC<GameGridProps> = ({
               <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>
 
-            {/* Region Filter */}
             <div className="relative flex-1 sm:flex-initial">
               <select
                 value={regionFilter}
@@ -197,7 +194,6 @@ export const GameGrid: React.FC<GameGridProps> = ({
               <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>
 
-            {/* Rating Filter */}
             <div className="relative flex-1 sm:flex-initial">
               <select
                 value={minRatingFilter}
@@ -212,7 +208,6 @@ export const GameGrid: React.FC<GameGridProps> = ({
               <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>
 
-            {/* View Mode Toggle */}
             <div className="flex items-center p-0.5 rounded-xl bg-slate-950 border border-slate-800">
               <button
                 onClick={() => setViewMode('grid')}
@@ -234,7 +229,6 @@ export const GameGrid: React.FC<GameGridProps> = ({
               </button>
             </div>
 
-            {/* Reset Filters */}
             {activeFiltersCount > 0 && (
               <button
                 onClick={clearAllFilters}
@@ -250,7 +244,6 @@ export const GameGrid: React.FC<GameGridProps> = ({
         </div>
       </div>
 
-      {/* Empty State */}
       {visibleGames.length === 0 ? (
         <div className="text-center py-16 px-4 bg-slate-900/50 border border-slate-800 rounded-3xl my-6">
           <Gamepad2 className="w-12 h-12 text-slate-600 mx-auto mb-4 animate-bounce" />
@@ -266,7 +259,6 @@ export const GameGrid: React.FC<GameGridProps> = ({
           </button>
         </div>
       ) : (
-        /* Games Grid / List Output */
         <div className={
           viewMode === 'grid'
             ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5"
@@ -286,7 +278,6 @@ export const GameGrid: React.FC<GameGridProps> = ({
         </div>
       )}
 
-      {/* Pagination / Load More Button */}
       {hasMore && (
         <div className="mt-10 text-center">
           <button

@@ -25,14 +25,14 @@ import { UserProfileModal } from './components/UserProfileModal';
 import { NotificationsDrawer } from './components/NotificationsDrawer';
 import { AdminPanel } from './components/admin/AdminPanel';
 
-// ===== NOVA FUNÇÃO PARA BUSCAR DO BANCO =====
+// ===== API BASE =====
 const API_URL = '/api';
 
 async function fetchGamesFromAPI() {
   const response = await fetch(`${API_URL}/games`);
   if (!response.ok) throw new Error('Erro ao carregar jogos');
   const data = await response.json();
-  return data.data; // MongoDB retorna { status: 'success', data: [...] }
+  return data.data;
 }
 
 export default function App() {
@@ -58,13 +58,18 @@ export default function App() {
   const [isNotificationsDrawerOpen, setIsNotificationsDrawerOpen] = useState<boolean>(false);
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
 
-  // ===== FUNÇÃO PARA CARREGAR DADOS =====
+  // ===== FUNÇÃO PARA CARREGAR DADOS (COM MAPEAMENTO DE _id) =====
   const loadGames = async () => {
     setLoading(true);
     setError(null);
     try {
       const gamesFromAPI = await fetchGamesFromAPI();
-      setGames(gamesFromAPI);
+      // ===== MAPEAR _id PARA id =====
+      const mappedGames = gamesFromAPI.map(g => ({
+        ...g,
+        id: g._id || g.id
+      }));
+      setGames(mappedGames);
     } catch (err) {
       console.error('Erro ao carregar jogos:', err);
       setError('Não foi possível carregar os jogos. Tente novamente mais tarde.');
@@ -81,21 +86,15 @@ export default function App() {
 
   // ===== LOAD INICIAL =====
   useEffect(() => {
-    // Inicializar Storage (para categorias, usuários, etc)
     StorageService.init();
-    
-    // Carregar dados do usuário local
     setCurrentUser(StorageService.getCurrentUser());
     setNotifications(StorageService.getNotifications());
     setSettings(StorageService.getSettings());
     setTheme(StorageService.getTheme());
 
-    // Carregar jogos do MongoDB
     loadGames();
 
-    // Event listener para atualizações
     const handleStateChange = () => {
-      // Recarregar apenas dados locais (não jogos)
       setCurrentUser(StorageService.getCurrentUser());
       setNotifications(StorageService.getNotifications());
       setSettings(StorageService.getSettings());
@@ -103,7 +102,6 @@ export default function App() {
     };
     window.addEventListener(EVENT_STATE_CHANGED, handleStateChange);
 
-    // Verificar rota admin
     if (window.location.pathname === '/admin' || window.location.hash === '#admin') {
       setIsAdminOpen(true);
     }
@@ -113,10 +111,9 @@ export default function App() {
     };
   }, []);
 
-  // ===== FUNÇÃO PARA ATUALIZAR JOGOS (usada pelo admin) =====
+  // ===== FUNÇÃO PARA ATUALIZAR JOGOS =====
   const refreshGames = async () => {
     await loadGames();
-    // Disparar evento para atualizar outros componentes
     window.dispatchEvent(new Event(EVENT_STATE_CHANGED));
   };
 
@@ -183,7 +180,6 @@ export default function App() {
       theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'
     }`}>
       
-      {/* Header */}
       <Header
         categories={categories}
         activeCategory={activeCategory}
@@ -197,21 +193,16 @@ export default function App() {
         unreadNotificationsCount={unreadCount}
         theme={theme}
         onToggleTheme={handleToggleTheme}
-        games={games}  
-      
+        games={games}
       />
 
-      {/* Main Body */}
       <main className="flex-1">
-        
-        {/* Featured Banner Carousel */}
         <FeaturedCarousel
           games={games}
           onSelectGame={(game) => setSelectedGameForDetails(game)}
           onOpenDownloadModal={(game) => setSelectedGameForDownload(game)}
         />
 
-        {/* Catalog Game Grid */}
         <GameGrid
           games={games}
           selectedCategory={activeCategory}
@@ -221,14 +212,10 @@ export default function App() {
           favorites={currentUser?.favorites || []}
           onToggleFavorite={handleToggleFavorite}
         />
-
       </main>
 
-      {/* Footer */}
       <footer className="mt-16 bg-slate-950 border-t border-slate-900 text-slate-400 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
-          
-          {/* Brand Info */}
           <div className="space-y-3 md:col-span-2">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-black text-sm shadow-md">
@@ -245,7 +232,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* Quick Categories */}
           <div>
             <h4 className="text-xs font-extrabold text-white uppercase tracking-wider mb-3">Categorias Populares</h4>
             <ul className="space-y-1.5 text-xs">
@@ -257,7 +243,6 @@ export default function App() {
             </ul>
           </div>
 
-          {/* Admin & Scroll Top */}
           <div className="space-y-3">
             <h4 className="text-xs font-extrabold text-white uppercase tracking-wider">Acesso Rápido</h4>
             <button
@@ -266,7 +251,6 @@ export default function App() {
             >
               Área Administrativa (/admin)
             </button>
-            
             <button
               onClick={scrollToTop}
               className="flex items-center gap-2 text-xs font-semibold text-slate-300 hover:text-white pt-2 cursor-pointer"
@@ -275,7 +259,6 @@ export default function App() {
               <span>Voltar ao Topo</span>
             </button>
           </div>
-
         </div>
 
         <div className="max-w-7xl mx-auto border-t border-slate-900 mt-8 pt-6 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-600 gap-2">
@@ -288,7 +271,6 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Modals & Drawers */}
       {selectedGameForDetails && (
         <GameDetailsModal
           game={selectedGameForDetails}
@@ -354,7 +336,6 @@ export default function App() {
           onRefreshAll={refreshGames}
         />
       )}
-
     </div>
   );
 }

@@ -10,28 +10,33 @@ interface DownloadModalProps {
 export const DownloadModal: React.FC<DownloadModalProps> = ({ game, onClose }) => {
   
   const handleDownload = async (url: string, type: 'pc' | 'ps4') => {
+    const gameId = game._id || game.id;
+    
+    if (!gameId) {
+      console.error('❌ ID do jogo não encontrado!');
+      window.open(url, '_blank');
+      return;
+    }
+    
     try {
-      // 1. INCREMENTAR CONTADOR NO MONGODB
-      console.log(`📊 Incrementando download para ${game.title}`);
-      const response = await fetch(`/api/games/${game.id}/download`, {
+      console.log(`📊 Incrementando download para ${game.title} (ID: ${gameId})`);
+      
+      const response = await fetch(`/api/games/${gameId}/download`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
       
-      if (!response.ok) {
-        console.warn('⚠️ Erro ao incrementar contador, mas continuando...');
-      } else {
+      if (response.ok) {
         const data = await response.json();
         console.log(`✅ Download registrado! Novo total: ${data.data.downloadsCount}`);
+      } else {
+        console.warn('⚠️ Erro ao incrementar contador, mas continuando...');
       }
       
-      // 2. ABRIR LINK DE DOWNLOAD
-      console.log(`🔗 Abrindo link para ${type.toUpperCase()}:`, url);
       window.open(url, '_blank');
       
     } catch (error) {
       console.error('❌ Erro no download:', error);
-      // Mesmo com erro, abrir o link
       window.open(url, '_blank');
     }
   };
@@ -64,7 +69,6 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({ game, onClose }) =
         </p>
 
         <div className="space-y-3">
-          {/* PC */}
           {game.downloadLinks.length > 0 && (
             <button
               onClick={() => handleDownload(game.downloadLinks[0].url, 'pc')}
@@ -76,7 +80,6 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({ game, onClose }) =
             </button>
           )}
 
-          {/* PS4 */}
           {game.downloadLinks.length > 1 && (
             <button
               onClick={() => handleDownload(game.downloadLinks[1].url, 'ps4')}

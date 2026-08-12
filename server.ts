@@ -55,7 +55,7 @@ app.put('/api/games/:id', async (req, res) => {
     const game = await Game.findByIdAndUpdate(
       req.params.id, 
       req.body, 
-      { returnDocument: 'after' }  // ← CORRIGIDO (era { new: true })
+      { returnDocument: 'after' }
     );
     if (!game) {
       return res.status(404).json({ status: 'error', message: 'Jogo não encontrado' });
@@ -84,20 +84,26 @@ app.delete('/api/games/:id', async (req, res) => {
 // ===== ROTA PARA INCREMENTAR DOWNLOAD =====
 app.post('/api/games/:id/download', async (req, res) => {
   try {
-    console.log(`📊 Incrementando download para ID: ${req.params.id}`);
+    const { id } = req.params;
+    console.log(`📊 ID recebido: "${id}"`);
+    
+    if (!id || id === 'undefined') {
+      console.error('❌ ID inválido ou undefined');
+      return res.status(400).json({ status: 'error', message: 'ID inválido' });
+    }
     
     const game = await Game.findByIdAndUpdate(
-      req.params.id,
+      id,
       { $inc: { downloadsCount: 1 } },
       { returnDocument: 'after' }
     );
     
     if (!game) {
-      console.log('❌ Jogo não encontrado');
+      console.log('❌ Jogo não encontrado para ID:', id);
       return res.status(404).json({ status: 'error', message: 'Jogo não encontrado' });
     }
     
-    console.log(`✅ Novo total de downloads: ${game.downloadsCount}`);
+    console.log(`✅ Jogo "${game.title}" agora tem ${game.downloadsCount} downloads`);
     res.json({ status: 'success', data: game });
     
   } catch (error) {
@@ -129,15 +135,13 @@ app.get('/api/stats', async (req, res) => {
 // ===== SERVIDOR DE ARQUIVOS ESTÁTICOS =====
 const distPath = path.join(process.cwd(), 'dist');
 
-// Servir arquivos estáticos
 app.use(express.static(distPath));
 
-// Fallback para SPA React
 app.get('*', (req, res) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
-// ===== INICIAR O SERVIDOR COM app.listen() =====
+// ===== INICIAR O SERVIDOR =====
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
   console.log(`📡 API: http://localhost:${PORT}/api/games`);

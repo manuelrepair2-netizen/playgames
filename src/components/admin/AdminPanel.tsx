@@ -981,8 +981,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onCloseAdmin, onRefreshA
                     <input type="text" value={formLanguage} onChange={(e) => setFormLanguage(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100" />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div><label className="text-xs font-bold text-slate-300 block mb-1">Link de Download Principal *</label><input type="url" required value={formPrimaryLink} onChange={(e) => setFormPrimaryLink(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100" /></div>
-                    <div><label className="text-xs font-bold text-slate-300 block mb-1">Link Alternativo</label><input type="text" value={formAltLink} onChange={(e) => setFormAltLink(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100" /></div>
+                    <div><label className="text-xs font-bold text-slate-300 block mb-1">Link de Download para PC</label><input type="url" required value={formPrimaryLink} onChange={(e) => setFormPrimaryLink(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100" /></div>
+                    <div><label className="text-xs font-bold text-slate-300 block mb-1">Link de download  para PS4</label><input type="text" value={formAltLink} onChange={(e) => setFormAltLink(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100" /></div>
                   </div>
                   <div className="flex items-center gap-6 pt-2">
                     <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-300">

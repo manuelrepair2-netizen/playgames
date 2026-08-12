@@ -85,10 +85,19 @@ export const GameDetailsModal: React.FC<GameDetailsModalProps> = ({
 
   // ===== FUNÇÃO DE DOWNLOAD COM CONTADOR =====
   const handleDownload = async (url: string, type: 'pc' | 'ps4') => {
+    // Usar _id se existir, senão usar id
+    const gameId = game._id || game.id;
+    
+    if (!gameId) {
+      console.error('❌ ID do jogo não encontrado!');
+      window.open(url, '_blank');
+      return;
+    }
+    
     try {
-      console.log(`📊 Incrementando download para ${game.title}`);
+      console.log(`📊 Incrementando download para ${game.title} (ID: ${gameId})`);
       
-      const response = await fetch(`/api/games/${game.id}/download`, {
+      const response = await fetch(`/api/games/${gameId}/download`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -105,7 +114,6 @@ export const GameDetailsModal: React.FC<GameDetailsModalProps> = ({
       
     } catch (error) {
       console.error('❌ Erro no download:', error);
-      // Mesmo com erro, abrir o link
       window.open(url, '_blank');
     }
   };
@@ -274,7 +282,7 @@ export const GameDetailsModal: React.FC<GameDetailsModalProps> = ({
               </p>
             </div>
 
-            {/* Download Links Box & Report Trigger */}
+            {/* Download Links Box */}
             <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5 shadow-inner">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
                 <div>
@@ -296,9 +304,7 @@ export const GameDetailsModal: React.FC<GameDetailsModalProps> = ({
                 </button>
               </div>
 
-              {/* Download Buttons - AGORA COM CONTADOR */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Primeiro link = PC */}
                 {game.downloadLinks.length > 0 && (
                   <button
                     onClick={() => handleDownload(game.downloadLinks[0].url, 'pc')}
@@ -316,7 +322,6 @@ export const GameDetailsModal: React.FC<GameDetailsModalProps> = ({
                   </button>
                 )}
 
-                {/* Segundo link = PS4 */}
                 {game.downloadLinks.length > 1 && (
                   <button
                     onClick={() => handleDownload(game.downloadLinks[1].url, 'ps4')}
@@ -336,7 +341,7 @@ export const GameDetailsModal: React.FC<GameDetailsModalProps> = ({
               </div>
             </div>
 
-            {/* User Comments & Star Reviews */}
+            {/* User Comments */}
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
@@ -349,7 +354,6 @@ export const GameDetailsModal: React.FC<GameDetailsModalProps> = ({
                 </div>
               </div>
 
-              {/* Add Comment Form */}
               <form onSubmit={handleAddComment} className="bg-slate-950 p-4 rounded-2xl border border-slate-800 mb-6">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-bold text-slate-300">Deixe sua avaliação:</span>
@@ -385,7 +389,6 @@ export const GameDetailsModal: React.FC<GameDetailsModalProps> = ({
                 </div>
               </form>
 
-              {/* Comment List */}
               <div className="space-y-3">
                 {comments.length === 0 ? (
                   <p className="text-xs text-slate-500 text-center py-4 italic">Seja o primeiro a avaliar este jogo!</p>
@@ -419,7 +422,7 @@ export const GameDetailsModal: React.FC<GameDetailsModalProps> = ({
               </div>
             </div>
 
-            {/* Related Games Slider/Grid */}
+            {/* Related Games */}
             {relatedGames.length > 0 && (
               <div className="pt-4 border-t border-slate-800">
                 <h3 className="text-sm font-extrabold text-slate-200 uppercase tracking-wider mb-3">
