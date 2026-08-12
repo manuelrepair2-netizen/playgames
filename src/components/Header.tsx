@@ -89,10 +89,10 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Logo */}
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-black text-sm shadow-md">
-              PS4
+              PC/PS4
             </div>
             <span className="font-extrabold text-lg text-white tracking-wider hidden sm:block">
-              PS4 Games
+              PLay Games
             </span>
           </div>
 
