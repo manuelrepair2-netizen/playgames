@@ -24,7 +24,7 @@ import { AuthModal } from './components/AuthModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import { NotificationsDrawer } from './components/NotificationsDrawer';
 import { AdminPanel } from './components/admin/AdminPanel';
-import { AdminPasswordModal } from './components/AdminPasswordModal'; // ← NOVO
+import { AdminPasswordModal } from './components/AdminPasswordModal';
 
 // ===== API BASE =====
 const API_URL = '/api';
@@ -62,13 +62,12 @@ export default function App() {
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [isAdminPasswordModalOpen, setIsAdminPasswordModalOpen] = useState<boolean>(false);
 
-  // ===== FUNÇÃO PARA CARREGAR DADOS (COM MAPEAMENTO DE _id) =====
+  // ===== FUNÇÃO PARA CARREGAR DADOS =====
   const loadGames = async () => {
     setLoading(true);
     setError(null);
     try {
       const gamesFromAPI = await fetchGamesFromAPI();
-      // ===== MAPEAR _id PARA id =====
       const mappedGames = gamesFromAPI.map(g => ({
         ...g,
         id: g._id || g.id
@@ -77,8 +76,6 @@ export default function App() {
     } catch (err) {
       console.error('Erro ao carregar jogos:', err);
       setError('Não foi possível carregar os jogos. Tente novamente mais tarde.');
-      
-      // Fallback: tentar carregar do Storage local
       const localGames = StorageService.getGames();
       if (localGames.length > 0) {
         setGames(localGames);
@@ -199,7 +196,7 @@ export default function App() {
         onOpenProfile={() => setIsProfileModalOpen(true)}
         onOpenNotifications={() => setIsNotificationsDrawerOpen(true)}
         onOpenAdmin={() => setIsAdminOpen(true)}
-        onOpenAdminPassword={() => setIsAdminPasswordModalOpen(true)} // ← NOVO
+        onOpenAdminPassword={() => setIsAdminPasswordModalOpen(true)}
         currentUser={currentUser}
         unreadNotificationsCount={unreadCount}
         theme={theme}
@@ -257,7 +254,7 @@ export default function App() {
           <div className="space-y-3">
             <h4 className="text-xs font-extrabold text-white uppercase tracking-wider">Acesso Rápido</h4>
             <button
-              onClick={() => setIsAdminPasswordModalOpen(true)} // ← AGORA ABRE MODAL DE SENHA
+              onClick={() => setIsAdminPasswordModalOpen(true)}
               className="text-xs font-bold text-cyan-400 bg-slate-900 border border-cyan-500/30 px-3 py-2 rounded-xl block hover:bg-slate-800 transition-colors w-full text-left"
             >
               Área Administrativa (/admin)
@@ -342,7 +339,7 @@ export default function App() {
         />
       )}
 
-      {/* ===== MODAL DE SENHA DO ADMIN ===== */}
+      {/* Modal de Senha do Admin */}
       {isAdminPasswordModalOpen && (
         <AdminPasswordModal
           onClose={() => setIsAdminPasswordModalOpen(false)}
@@ -350,7 +347,7 @@ export default function App() {
         />
       )}
 
-      {/* ===== ADMIN PANEL ===== */}
+      {/* Admin Panel */}
       {isAdminOpen && (
         <AdminPanel
           onCloseAdmin={() => setIsAdminOpen(false)}

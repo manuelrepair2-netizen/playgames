@@ -22,8 +22,8 @@ interface HeaderProps {
   onOpenAuth: () => void;
   onOpenProfile: () => void;
   onOpenNotifications: () => void;
-  onOpenAdmin: () => void; // Mantido para compatibilidade
-  onOpenAdminPassword: () => void; // NOVO: abre modal de senha
+  onOpenAdmin: () => void;
+  onOpenAdminPassword: () => void;
   currentUser: UserType | null;
   unreadNotificationsCount: number;
   theme: 'dark' | 'light';
@@ -40,7 +40,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenProfile,
   onOpenNotifications,
   onOpenAdmin,
-  onOpenAdminPassword, // NOVA PROP
+  onOpenAdminPassword,
   currentUser,
   unreadNotificationsCount,
   theme,
