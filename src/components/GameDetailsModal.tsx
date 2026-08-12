@@ -15,10 +15,8 @@ import {
   Send, 
   ThumbsUp, 
   MessageSquare, 
-  CheckCircle2, 
-  ArrowRight,
-  ShieldCheck,
-  ChevronRight
+  CheckCircle2,
+  ShieldCheck
 } from 'lucide-react';
 import { Game, Comment, User } from '../types';
 import { StorageService } from '../services/storage';
@@ -249,7 +247,7 @@ export const GameDetailsModal: React.FC<GameDetailsModalProps> = ({
               </p>
             </div>
 
-            {/* ===== SEÇÃO DE DOWNLOAD CORRIGIDA ===== */}
+            {/* Download Links Box & Report Trigger */}
             <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5 shadow-inner">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
                 <div>
@@ -271,14 +269,15 @@ export const GameDetailsModal: React.FC<GameDetailsModalProps> = ({
                 </button>
               </div>
 
-              {/* Download Buttons - ABREM DIRETO */}
+              {/* Download Buttons - Abrem diretamente com window.open */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* PC */}
+                {/* Primeiro link = PC */}
                 {game.downloadLinks.length > 0 && (
                   <button
                     onClick={() => {
-                      console.log('🔗 Abrindo link para PC:', game.downloadLinks[0].url);
-                      window.open(game.downloadLinks[0].url, '_blank');
+                      const url = game.downloadLinks[0].url;
+                      console.log('🔗 Abrindo link para PC:', url);
+                      window.open(url, '_blank');
                     }}
                     className="flex items-center justify-between p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/50 transition-all text-left group cursor-pointer"
                   >
@@ -294,12 +293,13 @@ export const GameDetailsModal: React.FC<GameDetailsModalProps> = ({
                   </button>
                 )}
 
-                {/* PS4 */}
+                {/* Segundo link = PS4 */}
                 {game.downloadLinks.length > 1 && (
                   <button
                     onClick={() => {
-                      console.log('🔗 Abrindo link para PS4:', game.downloadLinks[1].url);
-                      window.open(game.downloadLinks[1].url, '_blank');
+                      const url = game.downloadLinks[1].url;
+                      console.log('🔗 Abrindo link para PS4:', url);
+                      window.open(url, '_blank');
                     }}
                     className="flex items-center justify-between p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-purple-500/50 transition-all text-left group cursor-pointer"
                   >
@@ -430,3 +430,4 @@ export const GameDetailsModal: React.FC<GameDetailsModalProps> = ({
     </div>
   );
 };
+
