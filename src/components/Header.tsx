@@ -22,12 +22,13 @@ interface HeaderProps {
   onOpenAuth: () => void;
   onOpenProfile: () => void;
   onOpenNotifications: () => void;
-  onOpenAdmin: () => void;
+  onOpenAdmin: () => void; // Mantido para compatibilidade
+  onOpenAdminPassword: () => void; // NOVO: abre modal de senha
   currentUser: UserType | null;
   unreadNotificationsCount: number;
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
-  games: Game[]; // ← ADICIONAR ESTA PROP
+  games: Game[];
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -39,11 +40,12 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenProfile,
   onOpenNotifications,
   onOpenAdmin,
+  onOpenAdminPassword, // NOVA PROP
   currentUser,
   unreadNotificationsCount,
   theme,
   onToggleTheme,
-  games // ← RECEBER JOGOS
+  games
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -168,11 +170,12 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </button>
 
-            {/* Admin (se for admin) */}
+            {/* ===== ADMIN - BOTÃO COM PROTEÇÃO POR SENHA ===== */}
             {currentUser?.role === 'admin' && (
               <button
-                onClick={onOpenAdmin}
+                onClick={onOpenAdminPassword}
                 className="p-2 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 transition-colors"
+                title="Acessar Painel Admin"
               >
                 <ShieldAlert className="w-4 h-4" />
               </button>
@@ -255,7 +258,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="text-sm font-bold text-slate-100">{currentUser.username}</span>
                 </button>
                 <button
-                  onClick={() => { onOpenAdmin(); setIsMobileMenuOpen(false); }}
+                  onClick={() => { onOpenAdminPassword(); setIsMobileMenuOpen(false); }}
                   className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
                 >
                   <ShieldAlert className="w-5 h-5" /> Admin

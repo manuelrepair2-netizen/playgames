@@ -24,6 +24,7 @@ import { AuthModal } from './components/AuthModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import { NotificationsDrawer } from './components/NotificationsDrawer';
 import { AdminPanel } from './components/admin/AdminPanel';
+import { AdminPasswordModal } from './components/AdminPasswordModal'; // ← NOVO
 
 // ===== API BASE =====
 const API_URL = '/api';
@@ -56,7 +57,10 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
   const [isNotificationsDrawerOpen, setIsNotificationsDrawerOpen] = useState<boolean>(false);
+  
+  // ===== ADMIN STATES =====
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
+  const [isAdminPasswordModalOpen, setIsAdminPasswordModalOpen] = useState<boolean>(false);
 
   // ===== FUNÇÃO PARA CARREGAR DADOS (COM MAPEAMENTO DE _id) =====
   const loadGames = async () => {
@@ -82,6 +86,12 @@ export default function App() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ===== FUNÇÃO PARA ABRIR ADMIN APÓS SENHA CORRETA =====
+  const handleAdminAccess = () => {
+    setIsAdminPasswordModalOpen(false);
+    setIsAdminOpen(true);
   };
 
   // ===== LOAD INICIAL =====
@@ -189,6 +199,7 @@ export default function App() {
         onOpenProfile={() => setIsProfileModalOpen(true)}
         onOpenNotifications={() => setIsNotificationsDrawerOpen(true)}
         onOpenAdmin={() => setIsAdminOpen(true)}
+        onOpenAdminPassword={() => setIsAdminPasswordModalOpen(true)} // ← NOVO
         currentUser={currentUser}
         unreadNotificationsCount={unreadCount}
         theme={theme}
@@ -246,7 +257,7 @@ export default function App() {
           <div className="space-y-3">
             <h4 className="text-xs font-extrabold text-white uppercase tracking-wider">Acesso Rápido</h4>
             <button
-              onClick={() => setIsAdminOpen(true)}
+              onClick={() => setIsAdminPasswordModalOpen(true)} // ← AGORA ABRE MODAL DE SENHA
               className="text-xs font-bold text-cyan-400 bg-slate-900 border border-cyan-500/30 px-3 py-2 rounded-xl block hover:bg-slate-800 transition-colors w-full text-left"
             >
               Área Administrativa (/admin)
@@ -271,6 +282,7 @@ export default function App() {
         </div>
       </footer>
 
+      {/* Modals & Drawers */}
       {selectedGameForDetails && (
         <GameDetailsModal
           game={selectedGameForDetails}
@@ -330,6 +342,15 @@ export default function App() {
         />
       )}
 
+      {/* ===== MODAL DE SENHA DO ADMIN ===== */}
+      {isAdminPasswordModalOpen && (
+        <AdminPasswordModal
+          onClose={() => setIsAdminPasswordModalOpen(false)}
+          onSuccess={handleAdminAccess}
+        />
+      )}
+
+      {/* ===== ADMIN PANEL ===== */}
       {isAdminOpen && (
         <AdminPanel
           onCloseAdmin={() => setIsAdminOpen(false)}
