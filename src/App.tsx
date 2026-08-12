@@ -101,6 +101,23 @@ export default function App() {
 
     loadGames();
 
+    // ===== DETECTAR LOGIN AUTOMÁTICO VIA URL =====
+    const hash = window.location.hash.replace('#', '');
+    if (hash) {
+      const adminPassword = settings.adminPasswordHash || 'admin';
+      if (hash === adminPassword) {
+        const users = StorageService.getUsers();
+        const adminUser = users.find(u => u.role === 'admin');
+        if (adminUser) {
+          StorageService.setCurrentUser(adminUser);
+          setCurrentUser(adminUser);
+          // Remover o hash da URL
+          window.history.replaceState(null, '', window.location.pathname);
+          console.log('✅ Login automático como admin realizado!');
+        }
+      }
+    }
+
     const handleStateChange = () => {
       setCurrentUser(StorageService.getCurrentUser());
       setNotifications(StorageService.getNotifications());
