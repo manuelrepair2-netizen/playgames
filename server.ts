@@ -141,6 +141,51 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
+// ===== SITEMAP DINÂMICO =====
+app.get('/sitemap.xml', async (req, res) => {
+  try {
+    const games = await Game.find({ status: 'Active' });
+    
+    // URL base do site
+    const baseUrl = 'https://playgames-n0sw.onrender.com';
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Gerar XML
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
+
+    // Página inicial
+    xml += `
+  <url>
+    <loc>${baseUrl}/</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>`;
+
+    // Páginas de jogos
+    games.forEach(game => {
+      xml += `
+  <url>
+    <loc>${baseUrl}/game/${game.slug}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>`;
+    });
+
+    // Fechar XML
+    xml += `
+</urlset>`;
+
+    res.header('Content-Type', 'application/xml');
+    res.send(xml);
+  } catch (error) {
+    console.error('Erro ao gerar sitemap:', error);
+    res.status(500).send('Erro ao gerar sitemap');
+  }
+});
+
 // ===== INICIAR O SERVIDOR =====
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);

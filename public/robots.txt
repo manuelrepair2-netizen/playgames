@@ -1,0 +1,11 @@
+# ===== ROBOTS.TXT =====
+# Diz ao Google o que indexar
+
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /profile/
+
+# ===== SITEMAP =====
+Sitemap: https://playgames-n0sw.onrender.com/sitemap.xml
